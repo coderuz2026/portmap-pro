@@ -170,7 +170,7 @@ input,textarea,select{font-family:inherit}
 .sheet-bg{position:fixed;inset:0;background:rgba(3,6,10,.66);z-index:50;opacity:0;pointer-events:none;
   transition:.22s;backdrop-filter:blur(2px)}
 .sheet-bg.on{opacity:1;pointer-events:auto}
-.sheet{position:fixed;left:50%;bottom:0;transform:translateX(-50%) translateY(100%);width:100%;
+.sheet{position:fixed;overscroll-behavior:contain;left:50%;bottom:0;transform:translateX(-50%) translateY(100%);width:100%;
   max-width:560px;background:var(--bg2);z-index:51;border-radius:20px 20px 0 0;border:1px solid var(--line);
   border-bottom:none;transition:transform .26s cubic-bezier(.32,.72,0,1);max-height:92vh;overflow-y:auto;
   padding:8px 20px calc(26px + env(safe-area-inset-bottom))}
@@ -297,6 +297,11 @@ input,textarea,select{font-family:inherit}
 #printArea .lbl .lq img,#printArea .lbl .lq canvas{display:block}
 #printArea .lbl .lt{font-size:9px;line-height:1.25}
 #printArea .lbl .lt b{font-size:10px}
+/* ===== PRO+ : AMOLED и режим монтажника ===== */
+body.amoled{--bg:#000000;--bg2:#050506;--surface:#0b0b0e;--surface2:#121216}
+body.fieldmode .sheet .adv{display:none!important}
+body.fieldmode .sheet .btn{padding:16px 18px;font-size:16px}
+body.fieldmode .sheet .seg button{padding:15px 8px;font-size:14px}
 /* ===== PRO+ : стойка и глобальный поиск ===== */
 .rackbox{border:1px solid var(--line);border-radius:12px;background:var(--bg2);margin:10px 0;overflow:hidden}
 .rackhead{padding:9px 12px;font-weight:700;font-size:13px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
@@ -353,7 +358,16 @@ async function loadIDB(){/* восстановление из IndexedDB, есл�
     if(!cur||cur.length<r.length){const parsed=JSON.parse(r);DB=parsed;Store.set('portmap_db',r);return true;}
   }catch(e){}
   return false;}
-function save(){const json=JSON.stringify(DB);
+function save(){
+  DB.chg=(DB.chg||0)+1;
+  /* суточный снапшот для графика заполненности */
+  const _td=new Date().toISOString().slice(0,10);
+  DB.statHist=DB.statHist||[];
+  const _used=DB.devices.reduce((a,d)=>a+Object.keys(d.ports||{}).length,0);
+  const _last=DB.statHist[DB.statHist.length-1];
+  if(!_last||_last.d!==_td)DB.statHist.push({d:_td,u:_used});else _last.u=_used;
+  if(DB.statHist.length>60)DB.statHist=DB.statHist.slice(-60);
+  const json=JSON.stringify(DB);
   const ok=Store.set('portmap_db',json);
   if(!ok&&!_lsWarned){_lsWarned=true;toast('⚠ localStorage переполнен — данные пишутся в IndexedDB');}
   IDB.set('portmap_db',json).catch(()=>{});
@@ -362,13 +376,44 @@ const _mq=window.matchMedia?matchMedia('(prefers-color-scheme: light)'):null;
 function applyTheme(){
   /* без явного выбора пользователя следуем системной теме */
   const light=DB.theme?DB.theme==='light':!!(_mq&&_mq.matches);
-  document.body.classList.toggle('light',light);
-  const m=document.querySelector('meta[name="theme-color"]');if(m)m.content=light?'#eef1f5':'#0a0e13';}
+  const amoled=DB.theme==='amoled';
+  document.body.classList.toggle('light',light&&!amoled);
+  document.body.classList.toggle('amoled',amoled);
+  document.body.classList.toggle('fieldmode',!!DB.fieldMode);
+  const m=document.querySelector('meta[name="theme-color"]');
+  if(m)m.content=amoled?'#000000':(light?'#eef1f5':'#0a0e13');}
 if(_mq&&_mq.addEventListener)_mq.addEventListener('change',()=>{if(!DB.theme)applyTheme();});
 
 /* ============ i18n (RU/UZ/EN) — основные экраны ============ */
 const LANG={
- ru:{objects:'Объектов',portsUsed:'Портов занято',portsTotal:'Портов всего',
+ ru:{objects:'Объектов',
+  /* --- PRO+ --- */
+  audit:'Проверка сети (аудит)',rack:'Стойки (юниты)',free_ports:'Свободные порты',
+  free_hint:'Куда воткнуть новое устройство — свободные порты по объектам',
+  free_filter:'Фильтр: стойка, объект, локация…',free_lbl:'Свободны',
+  shift:'Сводка за период',shift_hint:'Все изменения за выбранный период',
+  h_short:'ч',d_short:'д',when:'Когда',who:'Кто',what:'Что',print:'Печать',
+  trash:'Корзина',trash_hint:'Удалённые объекты хранятся 30 дней',trash_empty:'Корзина пуста',
+  trash_err:'Не удалось открыть корзину',restore:'Вернуть',restored:'Восстановлено',
+  deleted:'Удалён объект',deleted_trash:'Удалено (30 дней в корзине)',del_confirm:'Удалить',
+  enc_exp:'Экспорт с паролем (шифрование)',enc_ask:'Пароль для шифрования бэкапа:',
+  enc_ask_dec:'Пароль от зашифрованного файла:',enc_done:'Зашифровано и выгружено',
+  enc_err:'Не удалось зашифровать',enc_badpass:'Неверный пароль или файл повреждён',imported:'Импортировано',
+  netbox:'Экспорт для NetBox (CSV)',nb_done:'Выгружено 2 файла: devices + interfaces',
+  field_mode:'Режим монтажника',on:'вкл',off:'выкл',
+  checklist:'Чек-лист приёмки',chk_fw:'Прошивка обновлена',chk_vlan:'Management VLAN настроен',
+  chk_snmp:'SNMP настроен (для агента)',chk_uplink:'Аплинк задокументирован',
+  chk_qr:'QR-наклейки наклеены',chk_cfg:'Бэкап конфига снят',
+  obj_notes:'Заметки объекта',note_ph:'Перезагружался 12.06, подозрение на БП…',
+  note_added:'добавлена заметка',add:'Добавить',
+  reality:'Сверка с реальностью (агент)',load:'Загрузить',loaded:'Загружено',
+  load_err:'Не удалось загрузить (URL/CORS?)',cancel:'Отмена',compare:'Сверить',
+  rk_print:'Паспорт стойки',rk_passport:'Паспорт стойки',rk_nocab:'Ни у одного объекта не указан шкаф',
+  object:'Объект',model:'Модель',close:'Закрыть',nothing:'Пусто',
+  saved:'Сохранено',undo:'Отменить',undone:'Отменено',port_cleared:'Порт очищен',
+  port_hist:'История порта',acc_created:'Аккаунт создан 🎉',
+  stat_trend:'занятые порты, динамика',open_web:'Открыть веб-интерфейс',
+  p_device:'Устройство / куда идёт',portsUsed:'Портов занято',portsTotal:'Портов всего',
   emptyTitle:'Здесь пока пусто',emptyText:'Добавь первый свитч — и начни размечать порты, кабели и патч-панели.',
   addSwitch:'Свитч',menu:'Меню',loggedAs:'Вошёл как',ai_diag:'AI-диагностика сети',
   topology:'Схема сети (топология)',theme:'Тема',theme_dark:'тёмная',theme_light:'светлая',
@@ -398,7 +443,34 @@ const LANG={
   ob_2:'Portlarni trassalarga bog‘lang, QR-yorliqlar chop eting va dalada skanerlang.',ob_3:'Tarmoq topologiyasi va AI-diagnostikani ko‘ring.',
   ob_demo:'Demo-tarmoqni yuklash',ob_start:'Boshlash',backup_nudge:'Ma’lumotlar qurilmada. Zaxira nusxa oling.',
   backup_do:'Zaxira olish',later:'Keyinroq',log_empty:'Hozircha yozuvlar yo‘q.'},
- en:{objects:'Objects',portsUsed:'Ports used',portsTotal:'Ports total',
+ en:{objects:'Objects',
+  /* --- PRO+ --- */
+  audit:'Network audit',rack:'Racks (units)',free_ports:'Free ports',
+  free_hint:'Where to plug a new device — free ports across objects',
+  free_filter:'Filter: rack, object, location…',free_lbl:'Free',
+  shift:'Activity summary',shift_hint:'All changes for the selected period',
+  h_short:'h',d_short:'d',when:'When',who:'Who',what:'What',print:'Print',
+  trash:'Trash',trash_hint:'Deleted objects are kept for 30 days',trash_empty:'Trash is empty',
+  trash_err:'Failed to open trash',restore:'Restore',restored:'Restored',
+  deleted:'Object deleted',deleted_trash:'Deleted (kept in trash for 30 days)',del_confirm:'Delete',
+  enc_exp:'Password-protected export (encrypted)',enc_ask:'Password to encrypt the backup:',
+  enc_ask_dec:'Password for the encrypted file:',enc_done:'Encrypted and downloaded',
+  enc_err:'Encryption failed',enc_badpass:'Wrong password or corrupted file',imported:'Imported',
+  netbox:'Export for NetBox (CSV)',nb_done:'2 files exported: devices + interfaces',
+  field_mode:'Field engineer mode',on:'on',off:'off',
+  checklist:'Commissioning checklist',chk_fw:'Firmware updated',chk_vlan:'Management VLAN configured',
+  chk_snmp:'SNMP configured (for the agent)',chk_uplink:'Uplink documented',
+  chk_qr:'QR labels applied',chk_cfg:'Config backup taken',
+  obj_notes:'Object notes',note_ph:'Rebooted on Jun 12, PSU suspected…',
+  note_added:'note added',add:'Add',
+  reality:'Reality check (agent)',load:'Load',loaded:'Loaded',
+  load_err:'Failed to load (URL/CORS?)',cancel:'Cancel',compare:'Compare',
+  rk_print:'Rack passport',rk_passport:'Rack passport',rk_nocab:'No object has a rack assigned',
+  object:'Object',model:'Model',close:'Close',nothing:'Nothing here',
+  saved:'Saved',undo:'Undo',undone:'Undone',port_cleared:'Port cleared',
+  port_hist:'Port history',acc_created:'Account created 🎉',
+  stat_trend:'used ports over time',open_web:'Open web interface',
+  p_device:'Device / where it goes',portsUsed:'Ports used',portsTotal:'Ports total',
   emptyTitle:'Nothing here yet',emptyText:'Add your first switch and start mapping ports, cables and patch panels.',
   addSwitch:'Switch',menu:'Menu',loggedAs:'Signed in as',ai_diag:'AI network diagnostics',
   topology:'Network map (topology)',theme:'Theme',theme_dark:'dark',theme_light:'light',
@@ -431,6 +503,7 @@ function showChangelog(){const log=DB.log||[];
 
 /* ============ онбординг ============ */
 function showOnboarding(){
+  if(sheet.classList.contains('on')){setTimeout(showOnboarding,800);return;} /* не перебиваем открытую шторку */
   openSheet(`<div style="text-align:center;padding:4px 0 2px"><div class="crown" style="width:60px;height:60px;margin:0 auto 14px;border-radius:16px;background:var(--surface);border:1px solid var(--line2);display:grid;place-items:center">${I.logoBig}</div>
     <h2>${t('ob_title')}</h2></div>
     <div class="profeat">${I.check} ${t('ob_1')}</div>
@@ -445,13 +518,17 @@ function showOnboarding(){
 
 /* ============ напоминание о бэкапе ============ */
 function backupStale(){if(!DB.devices.length)return false;const now=Date.now();
+  if((DB.chg||0)>50&&(!DB.lastBackup||now-DB.lastBackup>864e5))return true; /* много изменений — напоминаем настойчиво */
   if(DB.backupSnooze&&now-DB.backupSnooze<7*864e5)return false;
   return !DB.lastBackup||now-DB.lastBackup>14*864e5;}
 function langCycle(){DB.lang=({ru:'uz',uz:'en',en:'ru'})[DB.lang||'ru'];save();closeSheet();renderHome();
   toast('Язык: '+({ru:'Русский',uz:'O‘zbek',en:'English'})[DB.lang]);}
 load();
 
-let authed=false; // session only — спрашиваем вход при каждом запуске
+/* Сессия переживает перезагрузку страницы (pull-to-refresh, возврат в TWA),
+   но заканчивается при полном закрытии приложения. */
+let authed=(()=>{try{return sessionStorage.getItem('pm_authed')==='1';}catch(e){return false;}})();
+function setAuthed(v){authed=v;try{v?sessionStorage.setItem('pm_authed','1'):sessionStorage.removeItem('pm_authed');}catch(e){}}
 
 /* ============================================================
    ОБЛАКО (Firebase) — по умолчанию ВЫКЛЮЧЕНО (локальный режим).
@@ -560,7 +637,7 @@ async function doRegister(){
   if(p!==p2){return fail(err,'Пароли не совпадают');}
   const salt=[...crypto.getRandomValues(new Uint8Array(16))].map(x=>x.toString(16).padStart(2,'0')).join('');
   DB.account={name,salt,hash:await sha256(salt+p),created:new Date().toISOString()};
-  save();authed=true;boot();toast('Аккаунт создан 🎉');
+  save();setAuthed(true);boot();toast(t('acc_created'));
 }
 function renderLogin(){
   document.getElementById('root').innerHTML=`
@@ -590,14 +667,14 @@ async function doLogin(){
     if(okp){/* миграция старого несолёного хэша */
       const salt=[...crypto.getRandomValues(new Uint8Array(16))].map(x=>x.toString(16).padStart(2,'0')).join('');
       a.salt=salt;a.hash=await sha256(salt+p);save();}}
-  if(okp){authed=true;boot();}
+  if(okp){setAuthed(true);boot();}
   else{fail(err,'Неверный пароль');document.querySelector('.auth').classList.add('shake');
     setTimeout(()=>document.querySelector('.auth')?.classList.remove('shake'),360);}
 }
 function fail(el,msg){el.textContent=msg;}
 function logout(){
   if(CLOUD.enabled&&_fb){_fb.auth.signOut().catch(()=>{});closeSheet();return;}
-  authed=false;closeSheet();boot();
+  setAuthed(false);closeSheet();boot();
 }
 
 /* ============ CLOUD (Firebase) ============ */
@@ -688,12 +765,13 @@ function renderHome(){
       ${backupStale()?`<div class="photohint" id="bkBanner" style="display:flex;align-items:center;gap:10px;text-align:left;justify-content:space-between">
         <span style="flex:1">${t('backup_nudge')}</span>
         <button id="bkDo" style="background:var(--brand);color:#1a1205;border:none;border-radius:8px;padding:7px 11px;font-weight:700;font-size:12px">${t('backup_do')}</button>
-        <button id="bkLater" style="background:transparent;border:none;color:var(--muted);font-size:12px">${t('later')}</button></div>`:''}
+        ${(DB.chg||0)>50?'':`<button id="bkLater" style="background:transparent;border:none;color:var(--muted);font-size:12px">${t('later')}</button>`}</div>`:''}
       <div class="statline">
         <div class="stat"><div class="n">${DB.devices.length}</div><div class="l">${t('objects')}</div></div>
         <div class="stat"><div class="n">${docPorts}</div><div class="l">${t('portsUsed')}</div></div>
         <div class="stat"><div class="n">${totalPorts}</div><div class="l">${t('portsTotal')}</div></div>
       </div>
+      ${sparkHTML()}
       ${DB.devices.length>1?`<div class="search">${I.search}<input id="gsearch" placeholder="Поиск по всем объектам: устройство, кабель, VLAN…"></div><div id="gsr"></div>`:''}
       ${DB.devices.length?renderDeviceList():emptyHome()}
     </div>
@@ -733,7 +811,9 @@ function devCard(d){const c=counts(d);
     <div class="usebar">${seg(c.up,'var(--up)')}${seg(c.reserved,'var(--reserved)')}${seg(c.fault,'var(--fault)')}${seg(c.free,'var(--free)')}</div></div>`;}
 
 /* ============ DEVICE ============ */
-function openDevice(id){view={name:'device',deviceId:id,filter:''};renderDevice();}
+function openDevice(id){
+  if(view.name!=='device')try{history.pushState({pm:'dev'},'');}catch(e){}
+  view={name:'device',deviceId:id,filter:''};renderDevice();}
 function renderDevice(){
   const d=DB.devices.find(x=>x.id===view.deviceId);if(!d)return goHome();
   const c=counts(d),app=document.getElementById('app');
@@ -741,7 +821,7 @@ function renderDevice(){
     <div class="topbar"><button class="iconbtn" id="backBtn" aria-label="Назад">${I.back}</button>
       <div class="logo"><b style="font-size:16px">${esc(d.name)}</b></div>
       <div class="spacer"></div><button class="iconbtn" id="devMenu" aria-label="Меню объекта">${I.dots}</button></div>
-    <div class="devhead"><div class="meta mono">${esc(d.model||'—')}${d.location?' · '+esc(d.location):''}</div></div>
+    <div class="devhead"><div class="meta mono">${esc(d.model||'—')}${d.location?' · '+esc(d.location):''}${d.mgmtIp?` · <a href="http://${esc(d.mgmtIp)}" target="_blank" rel="noopener" style="color:var(--brand);text-decoration:none">${esc(d.mgmtIp)} ↗</a>`:''}</div></div>
     <div class="chips">
       <div class="chip"><span class="dot" style="background:var(--up)"></span>Активны <b>${c.up}</b></div>
       <div class="chip"><span class="dot" style="background:var(--reserved)"></span>Резерв <b>${c.reserved}</b></div>
@@ -760,7 +840,7 @@ function renderDevice(){
   drawPlate(d);
 }
 function matchPort(p,q){if(!q)return null;q=q.toLowerCase();if(!p)return false;
-  return[p.device,p.vlan,p.cableId,p.location,p.note].some(v=>v&&String(v).toLowerCase().includes(q));}
+  return[p.device,p.vlan,p.cableId,p.location,p.note,p.ip,p.mac].some(v=>v&&String(v).toLowerCase().includes(q));}
 function drawPlate(d){
   const plate=document.getElementById('plate'),q=view.filter.trim();
   const sfpFrom=d.sfpFrom||0, copperMax=sfpFrom?sfpFrom-1:d.portCount;
@@ -792,7 +872,9 @@ function portCell(d,n,q){const p=d.ports[n],s=(p&&p.status)||'free';let cls='';
 
 /* ============ sheet ============ */
 const bg=document.getElementById('bg'),sheet=document.getElementById('sheet');
-function openSheet(html){sheet.innerHTML=`<div class="grip"></div>`+html;bg.classList.add('on');sheet.classList.add('on');}
+function openSheet(html){
+  if(!sheet.classList.contains('on'))try{history.pushState({pm:'sheet'},'');}catch(e){}
+  sheet.innerHTML=`<div class="grip"></div>`+html;bg.classList.add('on');sheet.classList.add('on');}
 function closeSheet(){if(typeof stopScanner==='function')stopScanner();bg.classList.remove('on');sheet.classList.remove('on');}
 bg.onclick=closeSheet;
 
@@ -804,19 +886,22 @@ function openPort(d,n){
     <div class="field"><label>Статус</label><div class="seg" id="seg">
       ${['free','up','reserved','fault'].map(v=>`<button data-v="${v}" class="${v===editPort.status?'sel':''}">
         <span class="d" style="background:${STAT[v]}"></span>${STATLBL[v]}</button>`).join('')}</div></div>
-    ${d.type!=='panel'?`<div class="field"><label>Режим порта</label><div class="seg" id="segmode">
+    ${d.type!=='panel'?`<div class="field adv"><label>Режим порта</label><div class="seg" id="segmode">
       <button data-m="access" class="${editPort.mode==='access'?'sel':''}">Access</button>
       <button data-m="trunk" class="${editPort.mode==='trunk'?'sel':''}" style="${editPort.mode==='trunk'?'border-color:var(--reserved)':''}">Trunk (аплинк)</button></div></div>`:''}
-    <div class="field"><label>Устройство / куда идёт</label><input id="f_device" placeholder="ПК-бухгалтерия, AP-2, NVR…" value="${esc(p.device||'')}"></div>
-    <div class="row2">
+    <div class="field"><label>${t('p_device')}</label><input id="f_device" placeholder="ПК-бухгалтерия, AP-2, NVR…" value="${esc(p.device||'')}"></div>
+    <div class="row2 adv">
+      <div class="field"><label>IP</label><input id="f_ip" class="mono" inputmode="decimal" placeholder="192.168.1.50" value="${esc(p.ip||'')}"></div>
+      <div class="field"><label>MAC</label><input id="f_mac" class="mono" placeholder="a4bb.6d12.34ff" value="${esc(p.mac||'')}"></div></div>
+    <div class="row2 adv">
       <div class="field"><label id="vlanLbl">${editPort.mode==='trunk'?'Разрешённые VLAN':'VLAN'}</label><input id="f_vlan" class="mono" placeholder="${editPort.mode==='trunk'?'10,20,30 или all':'10'}" value="${esc(p.vlan||'')}"></div>
       <div class="field"><label>Кабель ID</label><input id="f_cable" class="mono" placeholder="A-014" value="${esc(p.cableId||'')}"></div></div>
-    <div class="field"><label>Локация / розетка</label><input id="f_loc" placeholder="Каб. 204, патч-панель P2:14" value="${esc(p.location||'')}"></div>
-    <div class="field"><label>Заметка</label><textarea id="f_note" placeholder="Что важно помнить…">${esc(p.note||'')}</textarea></div>
-    <div class="field"><label>Связь / кабель-трасса</label><div id="linkArea"></div></div>
+    <div class="field adv"><label>Локация / розетка</label><input id="f_loc" placeholder="Каб. 204, патч-панель P2:14" value="${esc(p.location||'')}"></div>
+    <div class="field adv"><label>Заметка</label><textarea id="f_note" placeholder="Что важно помнить…">${esc(p.note||'')}</textarea></div>
+    <div class="field adv"><label>Связь / кабель-трасса</label><div id="linkArea"></div></div>
     ${histHTML(p)}
     <div class="qrbox" id="qrbox"><div class="qrcard"><div id="qr"></div></div><p id="qrtext"></p></div>
-    <div class="btnrow"><button class="btn ghost" id="qrBtn">${I.qr} QR</button>
+    <div class="btnrow adv"><button class="btn ghost" id="qrBtn">${I.qr} QR</button>
       <button class="btn ghost" id="nfcBtn">${I.nfc} NFC</button></div>
     <div class="btnrow" style="margin-top:10px"><button class="btn ghost" id="photoBtn">${I.photo} На фото</button>
       <button class="btn ghost" id="impBtn">${I.bolt} Что отвалится</button></div>
@@ -834,14 +919,17 @@ function openPort(d,n){
     if(editPort.mode==='trunk'){lbl.textContent='Разрешённые VLAN';vi.placeholder='10,20,30 или all';}
     else{lbl.textContent='VLAN';vi.placeholder='10';}});
   document.getElementById('savePort').onclick=savePort;
-  document.getElementById('clearPort').onclick=()=>{removeReverse(editPort.d,editPort.n);delete editPort.d.ports[editPort.n];save();closeSheet();renderDevice();toast('Порт очищен');};
+  document.getElementById('clearPort').onclick=()=>{snapUndo(editPort.d,editPort.n);
+    removeReverse(editPort.d,editPort.n);delete editPort.d.ports[editPort.n];
+    save();closeSheet();renderDevice();toastAct(t('port_cleared'),t('undo'),undoLast);};
   document.getElementById('qrBtn').onclick=showQR;
 }
 function readPort(){return{status:editPort.status,mode:editPort.mode,device:val('f_device'),vlan:val('f_vlan'),
-  cableId:val('f_cable'),location:val('f_loc'),note:val('f_note')};}
+  cableId:val('f_cable'),location:val('f_loc'),note:val('f_note'),ip:val('f_ip'),mac:val('f_mac')};}
 function savePort(){const p=readPort();const cur=editPort.d.ports[editPort.n]||{};const link=cur.link;
+  snapUndo(editPort.d,editPort.n);
   if(p.mode==='access')delete p.mode;
-  const empty=p.status==='free'&&p.mode!=='trunk'&&!p.device&&!p.vlan&&!p.cableId&&!p.location&&!p.note&&!link;
+  const empty=p.status==='free'&&p.mode!=='trunk'&&!p.device&&!p.vlan&&!p.cableId&&!p.location&&!p.note&&!p.ip&&!p.mac&&!link;
   if(empty){removeReverse(editPort.d,editPort.n);delete editPort.d.ports[editPort.n];}
   else{if(link)p.link=link;
     /* переносим историю и фиксируем изменения */
@@ -850,7 +938,7 @@ function savePort(){const p=readPort();const cur=editPort.d.ports[editPort.n]||{
     const ch=portDiff(cur,p);if(ch.length)portHist(p,ch.join('; '));
     editPort.d.ports[editPort.n]=p;}
   logEvent(`${editPort.d.name} · порт ${editPort.n}: ${empty?'очищен':(STATLBL[p.status]||p.status)+(p.mode==='trunk'?' (trunk)':'')}`);
-  save();closeSheet();renderDevice();toast('Сохранено');}
+  save();closeSheet();renderDevice();toastAct(t('saved'),t('undo'),undoLast);}
 function showQR(){const p=readPort(),d=editPort.d;
   const tag=`#PM:${d.id}:${editPort.n}#`;
   const human=`${d.name} | Порт ${editPort.n}`+(p.device?` | ${p.device}`:'')+
@@ -1180,8 +1268,7 @@ function parseCLI(text,d){
   else if(macRe.test(text)){type='mac address-table';
     lines.forEach(l=>{const mm=l.match(macRe);if(!mm)return;
       const ifm=l.match(/([A-Za-z]{2,}[\d\/]+)\s*$/);if(!ifm)return;const n=ifPort(ifm[1]);if(!n)return;
-      const vl=l.match(/^\s*(\d{1,4})\b/);const patch={status:'up'};if(vl)patch.vlan=vl[1];
-      if(!(d.ports[n]&&d.ports[n].device))patch.note=(d.ports[n]&&d.ports[n].note?d.ports[n].note+'; ':'')+'MAC '+mm[1];
+      const vl=l.match(/^\s*(\d{1,4})\b/);const patch={status:'up',mac:mm[1]};if(vl)patch.vlan=vl[1];
       set(n,patch);});}
   else return{type:'',count:0};
   save();return{type,count};
@@ -1277,6 +1364,7 @@ function tryAddDevice(){if(!DB.pro&&DB.devices.length>=1){openPro();return;}open
       <div class="field"><label>Площадка / здание</label><input id="d_site" placeholder="Главный офис" value="${esc(d?.site||'')}"></div>
       <div class="field"><label>Шкаф / стойка</label><input id="d_cab" placeholder="Стойка R1" value="${esc(d?.cabinet||'')}"></div></div>
     <div class="field"><label>Локация</label><input id="d_loc" placeholder="Серверная, этаж 2…" value="${esc(d?.location||'')}"></div>
+    <div class="field"><label>IP управления (веб-интерфейс)</label><input id="d_mip" class="mono" inputmode="decimal" placeholder="192.168.1.2" value="${esc(d?.mgmtIp||'')}"></div>
     <div class="field"><label>Медных портов (RJ45)</label>
       <div class="pcount" id="pcount">
         ${[8,16,24,48].map(n=>`<button data-n="${n}" class="${curCopper===n?'sel':''}">${n}</button>`).join('')}</div>
@@ -1302,7 +1390,7 @@ function tryAddDevice(){if(!DB.pro&&DB.devices.length>=1){openPro();return;}open
     const cin=parseInt(val('d_copper'));if(cin>0)copper=cin;if(dtype==='panel')sfp=0;
     copper=Math.max(1,Math.min(96,copper||24));sfp=sfp||0;
     const total=copper+sfp,sfpFrom=sfp>0?copper+1:0;
-    const fields={name,model:val('d_model'),location:val('d_loc'),site:val('d_site'),cabinet:val('d_cab'),portCount:total,sfpFrom,type:dtype};
+    const fields={name,model:val('d_model'),location:val('d_loc'),site:val('d_site'),cabinet:val('d_cab'),mgmtIp:val('d_mip'),portCount:total,sfpFrom,type:dtype};
     if(isEdit){Object.assign(d,fields);Object.keys(d.ports).forEach(k=>{if(+k>total)delete d.ports[k];});
       logEvent(`Изменён объект: ${name}`);save();closeSheet();renderDevice();toast('Сохранено');}
     else{const nd=Object.assign({id:uid(),ports:{}},fields);
@@ -1312,7 +1400,10 @@ function openDeviceMenu(d){
   openSheet(`<h2 style="margin-bottom:14px">${esc(d.name)}</h2>
     <div class="menu-item" id="m_edit">${I.edit} Изменить объект</div>
     <div class="menu-item" id="m_cli">${I.csv} Импорт из вывода команды</div>
-    <div class="menu-item" id="m_real">${I.bolt} Сверка с реальностью (агент)</div>
+    <div class="menu-item" id="m_real">${I.bolt} ${t('reality')}</div>
+    <div class="menu-item" id="m_check">${I.check} ${t('checklist')}</div>
+    <div class="menu-item" id="m_notes">${I.edit} ${t('obj_notes')}</div>
+    ${d.mgmtIp?`<div class="menu-item" id="m_web">${I.mapg} ${t('open_web')} (${esc(d.mgmtIp)})</div>`:''}
     <div class="menu-item" id="m_bulk">${I.bolt} Массовое редактирование</div>
     <div class="menu-item" id="m_photo">${I.photo} Фото и разметка портов</div>
     <div class="menu-item" id="m_impact">${I.bolt} Impact-анализ (весь объект)</div>
@@ -1324,6 +1415,9 @@ function openDeviceMenu(d){
   document.getElementById('m_edit').onclick=()=>{closeSheet();setTimeout(()=>openDeviceForm(d),120);};
   document.getElementById('m_cli').onclick=()=>{closeSheet();setTimeout(()=>openCliImport(d),140);};
   document.getElementById('m_real').onclick=()=>{closeSheet();setTimeout(()=>openRealityCheck(d),140);};
+  document.getElementById('m_check').onclick=()=>{closeSheet();setTimeout(()=>showChecklist(d),140);};
+  document.getElementById('m_notes').onclick=()=>{closeSheet();setTimeout(()=>showDevNotes(d),140);};
+  const mw=document.getElementById('m_web');if(mw)mw.onclick=()=>{window.open('http://'+d.mgmtIp,'_blank');closeSheet();};
   document.getElementById('m_bulk').onclick=()=>{closeSheet();setTimeout(()=>openBulk(d),140);};
   document.getElementById('m_photo').onclick=()=>{closeSheet();setTimeout(()=>openPhotoMapper(d),160);};
   document.getElementById('m_impact').onclick=()=>{closeSheet();setTimeout(()=>showImpactDevice(d),160);};
@@ -1331,23 +1425,30 @@ function openDeviceMenu(d){
   document.getElementById('m_pdf').onclick=()=>{closeSheet();setTimeout(()=>printReport(d),200);};
   document.getElementById('m_labels').onclick=()=>{closeSheet();setTimeout(()=>printLabels(d),200);};
   document.getElementById('m_exp').onclick=()=>{exportData([d],`portmap-${d.name}.json`);closeSheet();};
-  document.getElementById('m_del').onclick=()=>{if(confirm(`Удалить «${d.name}» со всеми портами?`)){
+  document.getElementById('m_del').onclick=()=>{if(confirm(`${t('del_confirm')} «${d.name}»?`)){
     Object.keys(d.ports).forEach(k=>{if(d.ports[k].link)removeReverse(d,+k);});
-    DB.devices=DB.devices.filter(x=>x.id!==d.id);logEvent(`Удалён объект: ${d.name}`);save();closeSheet();goHome();toast('Удалено');}};
+    trashPush(JSON.parse(JSON.stringify(d))); /* страховка: 30 дней в корзине */
+    DB.devices=DB.devices.filter(x=>x.id!==d.id);logEvent(`${t('deleted')}: ${d.name}`);save();closeSheet();goHome();toast(t('deleted_trash'));}};
 }
 function openMenu(){
   openSheet(`<h2 style="margin-bottom:4px">${t('menu')}</h2>
     <div class="hint">${t('loggedAs')} ${esc(DB.account?.name||DB.cloudEmail||'—')}${CLOUD.enabled?' · ☁ облако':''}</div>
     <div class="menu-item" id="m_ai">${I.ai} ${t('ai_diag')}</div>
     <div class="menu-item" id="m_topo">${I.mapg} ${t('topology')}</div>
-    <div class="menu-item" id="m_audit">${I.bolt} Проверка сети (аудит)</div>
-    <div class="menu-item" id="m_rack">${I.mapg} Стойки (юниты)</div>
+    <div class="menu-item" id="m_audit">${I.bolt} ${t('audit')}</div>
+    <div class="menu-item" id="m_rack">${I.mapg} ${t('rack')}</div>
+    <div class="menu-item" id="m_free">${I.search} ${t('free_ports')}</div>
+    <div class="menu-item" id="m_shift">${I.edit} ${t('shift')}</div>
+    <div class="menu-item" id="m_field">${I.bolt} ${t('field_mode')}: ${DB.fieldMode?t('on'):t('off')}</div>
     <div class="menu-item" id="m_log">${I.edit} ${t('changelog')}</div>
-    <div class="menu-item" id="m_theme">${I.theme} ${t('theme')}: ${DB.theme==='light'?t('theme_light'):t('theme_dark')}</div>
+    <div class="menu-item" id="m_theme">${I.theme} ${t('theme')}: ${({light:t('theme_light'),amoled:'AMOLED'})[DB.theme]||t('theme_dark')}</div>
     <div class="menu-item" id="m_lang">🌐 ${t('language')}: ${({ru:'Русский',uz:'O‘zbek',en:'English'})[DB.lang||'ru']}</div>
     <div class="menu-item" id="m_expall">${I.exp} ${t('export_json')}</div>
     <div class="menu-item" id="m_csv">${I.csv} ${t('export_csv')}</div>
+    <div class="menu-item" id="m_netbox">${I.csv} ${t('netbox')}</div>
+    <div class="menu-item" id="m_encexp">${I.exp} ${t('enc_exp')}</div>
     <div class="menu-item" id="m_imp">${I.imp} ${t('import_file')}</div>
+    <div class="menu-item" id="m_trash">${I.trash} ${t('trash')}</div>
     <div class="menu-item" id="m_pro">${I.crown} ${DB.pro?t('pro_active'):t('pro_open')}</div>
     <div class="menu-item" id="m_demo">${I.mapg} ${t('demo')}</div>
     <div class="menu-item warn" id="m_out">${I.out} ${t('logout')}</div>`);
@@ -1355,12 +1456,18 @@ function openMenu(){
   document.getElementById('m_topo').onclick=()=>{closeSheet();setTimeout(showTopology,160);};
   document.getElementById('m_audit').onclick=()=>{closeSheet();setTimeout(showAudit,160);};
   document.getElementById('m_rack').onclick=()=>{closeSheet();setTimeout(showRack,160);};
+  document.getElementById('m_free').onclick=()=>{closeSheet();setTimeout(showFreePorts,160);};
+  document.getElementById('m_shift').onclick=()=>{closeSheet();setTimeout(showShift,160);};
+  document.getElementById('m_field').onclick=()=>{DB.fieldMode=!DB.fieldMode;save();applyTheme();closeSheet();toast(t('field_mode')+': '+(DB.fieldMode?t('on'):t('off')));};
   document.getElementById('m_log').onclick=()=>{closeSheet();setTimeout(showChangelog,160);};
-  document.getElementById('m_theme').onclick=()=>{DB.theme=DB.theme==='light'?'dark':'light';save();applyTheme();closeSheet();setTimeout(openMenu,60);};
+  document.getElementById('m_theme').onclick=()=>{DB.theme=({dark:'light',light:'amoled',amoled:'dark'})[DB.theme]||'light';save();applyTheme();closeSheet();setTimeout(openMenu,60);};
   document.getElementById('m_lang').onclick=langCycle;
   document.getElementById('m_expall').onclick=()=>{exportData(DB.devices,'portmap-backup.json');closeSheet();};
   document.getElementById('m_csv').onclick=()=>{exportCSV(DB.devices);closeSheet();};
+  document.getElementById('m_netbox').onclick=()=>{exportNetbox();closeSheet();};
+  document.getElementById('m_encexp').onclick=()=>{closeSheet();setTimeout(exportEncrypted,120);};
   document.getElementById('m_imp').onclick=importData;
+  document.getElementById('m_trash').onclick=()=>{closeSheet();setTimeout(showTrash,160);};
   document.getElementById('m_pro').onclick=()=>{closeSheet();setTimeout(openPro,120);};
   document.getElementById('m_demo').onclick=()=>{closeSheet();setTimeout(()=>{if(confirm('Добавить демо-сеть (2 свитча + панель, со связями и аварией)?'))loadDemo();},100);};
   document.getElementById('m_out').onclick=logout;
@@ -1382,7 +1489,7 @@ function exportData(devices,fname){
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fname;a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-  if(devices===DB.devices){DB.lastBackup=Date.now();save();}
+  if(devices===DB.devices){DB.lastBackup=Date.now();DB.chg=0;save();}
   toast('Файл выгружен');}
 function importData(){const inp=document.createElement('input');inp.type='file';inp.accept='.json,.csv,application/json,text/csv';
   inp.onchange=()=>{const file=inp.files[0];if(!file)return;const fr=new FileReader();
@@ -1390,7 +1497,9 @@ function importData(){const inp=document.createElement('input');inp.type='file';
       const isCSV=file.name.toLowerCase().endsWith('.csv')||(!txt.trim().startsWith('{')&&txt.includes(';'));
       try{
         if(isCSV){const n=importCSV(txt);closeSheet();renderHome();toast(n?`Импортировано свитчей: ${n}`:'Пустой CSV');}
-        else{const data=JSON.parse(txt),list=data.devices||[];
+        else{const data=JSON.parse(txt);
+          if(data.enc===1){importEncrypted(data);return;}
+          const list=data.devices||[];
           list.forEach(d=>{if(!d.id)d.id=uid();if(!d.ports)d.ports={};DB.devices.push(d);});
           save();closeSheet();renderHome();toast(`Импортировано: ${list.length}`);}
       }catch(e){toast('Не удалось прочитать файл');}};fr.readAsText(file);};inp.click();}
@@ -1400,11 +1509,11 @@ function goHome(){view={name:'home',deviceId:null,filter:''};renderHome();}
 /* ============ CSV (Excel) ============ */
 function csvCell(v){v=String(v??'');return /[",\n;]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}
 function exportCSV(devices){
-  const head=['Свитч','Модель','Локация_свитча','Порт','Статус','Устройство','VLAN','Кабель_ID','Локация','Заметка','Режим'];
+  const head=['Свитч','Модель','Локация_свитча','Порт','Статус','Устройство','IP','MAC','VLAN','Кабель_ID','Локация','Заметка','Режим'];
   const rows=[head.join(';')];
   devices.forEach(d=>{for(let n=1;n<=d.portCount;n++){const p=d.ports[n]||{};
     if((p.status||'free')==='free'&&!p.device&&!p.vlan&&!p.cableId&&!p.location&&!p.note)continue;
-    rows.push([d.name,d.model||'',d.location||'',n,STATLBL[p.status||'free'],p.device||'',p.vlan||'',p.cableId||'',p.location||'',p.note||'',p.mode==='trunk'?'trunk':'access'].map(csvCell).join(';'));}});
+    rows.push([d.name,d.model||'',d.location||'',n,STATLBL[p.status||'free'],p.device||'',p.ip||'',p.mac||'',p.vlan||'',p.cableId||'',p.location||'',p.note||'',p.mode==='trunk'?'trunk':'access'].map(csvCell).join(';'));}});
   const blob=new Blob(['\ufeff'+rows.join('\n')],{type:'text/csv;charset=utf-8'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='portmap.csv';a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href),1000);toast('CSV выгружен');}
@@ -1439,11 +1548,11 @@ function reportHTML(d){
   const c=counts(d);let rows='';
   for(let n=1;n<=d.portCount;n++){const p=d.ports[n]||{};const s=p.status||'free';
     rows+=`<tr><td class="pn">${d.sfpFrom&&n>=d.sfpFrom?'SFP'+(n-d.sfpFrom+1):n}</td><td><span class="pd" style="background:${({up:'#3fb950',reserved:'#4493f8',fault:'#f85149',free:'#c9ced6'})[s]}"></span>${STATLBL[s]}${p.mode==='trunk'?' · trunk':''}</td>
-      <td>${esc(p.device||'')}</td><td>${esc(p.vlan||'')}</td><td>${esc(p.cableId||'')}</td><td>${esc(p.location||'')}</td></tr>`;}
+      <td>${esc(p.device||'')}</td><td class="pn">${esc([p.ip,p.mac].filter(Boolean).join(' '))}</td><td>${esc(p.vlan||'')}</td><td>${esc(p.cableId||'')}</td><td>${esc(p.location||'')}</td></tr>`;}
   return `<div class="rpt">
     <div class="rh"><h1>${esc(d.name)}</h1><div class="rsub">${esc(d.model||'')}${d.location?' · '+esc(d.location):''}</div></div>
     <div class="rmeta">Портов: <b>${d.portCount}</b> · Занято: <b>${c.used}</b> · Свободно: <b>${c.free}</b> · ${new Date().toLocaleDateString('ru-RU')}</div>
-    <table class="rt"><thead><tr><th>#</th><th>Статус</th><th>Устройство</th><th>VLAN</th><th>Кабель</th><th>Локация</th></tr></thead><tbody>${rows}</tbody></table>
+    <table class="rt"><thead><tr><th>#</th><th>Статус</th><th>Устройство</th><th>IP / MAC</th><th>VLAN</th><th>Кабель</th><th>Локация</th></tr></thead><tbody>${rows}</tbody></table>
     <div class="rf">PortMap Pro · карта портов</div></div>`;}
 function printReport(d){printHTML(reportHTML(d));}
 function printLabels(d){
@@ -1471,7 +1580,7 @@ function portHist(p,text){p.hist=p.hist||[];
   p.hist.unshift({ts:Date.now(),user:(DB.account&&DB.account.name)||DB.cloudEmail||'—',text});
   if(p.hist.length>15)p.hist.length=15;}
 function portDiff(cur,p){
-  const F={status:'статус',mode:'режим',device:'устройство',vlan:'VLAN',cableId:'кабель',location:'локация',note:'заметка'};
+  const F={status:'статус',mode:'режим',device:'устройство',vlan:'VLAN',cableId:'кабель',location:'локация',note:'заметка',ip:'IP',mac:'MAC'};
   const fmt=(k,v)=>k==='status'?(STATLBL[v||'free']||v):(v||'—');
   const ch=[];Object.keys(F).forEach(k=>{
     let a=String(cur[k]??''),b=String(p[k]??'');
@@ -1479,7 +1588,7 @@ function portDiff(cur,p){
     if(a!==b)ch.push(`${F[k]}: ${fmt(k,a)} → ${fmt(k,b)}`);});
   return ch;}
 function histHTML(p){if(!p.hist||!p.hist.length)return '';
-  return `<div class="field"><label>История порта</label>${p.hist.slice(0,6).map(e=>
+  return `<div class="field adv"><label>${t('port_hist')}</label>${p.hist.slice(0,6).map(e=>
     `<div class="impitem"><div><div>${esc(e.text)}</div>
       <div style="font-size:11px;color:var(--muted);margin-top:2px">${esc(e.user)} · ${relTime(e.ts)}</div></div></div>`).join('')}</div>`;}
 
@@ -1518,8 +1627,17 @@ function showAudit(){
     ${sec('Разные VLAN на концах линка',r.vlan,'var(--reserved)')}
     ${sec('Аварийные порты',r.fault,'var(--fault)')}
     ${sec('Зомби-резервы (дольше 30 дней)',r.stale,'var(--reserved)')}
-    <div class="btnrow" style="margin-top:14px"><button class="btn ghost" id="au_close">Закрыть</button></div>`);
+    <div class="btnrow" style="margin-top:14px"><button class="btn ghost" id="au_close">${t('close')}</button>
+      ${total?`<button class="btn prim" id="au_csv">CSV</button>`:''}</div>`);
   document.getElementById('au_close').onclick=closeSheet;
+  const ac=document.getElementById('au_csv');if(ac)ac.onclick=()=>{
+    const rows=['Тип;Описание'];
+    const add=(tp,arr)=>arr.forEach(x=>rows.push(tp+';'+String(x.text).replace(/;/g,',')));
+    add('Дубликат кабеля',r.dup);add('Режимы линка',r.mode);add('VLAN линка',r.vlan);
+    add('Авария',r.fault);add('Зомби-резерв',r.stale);
+    const blob=new Blob(['\ufeff'+rows.join('\n')],{type:'text/csv;charset=utf-8'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='portmap-audit.csv';a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);toast('CSV');};
   document.querySelectorAll('.audit-i').forEach(el=>el.onclick=()=>{
     const d=devById(el.dataset.d);if(!d)return;
     closeSheet();openDevice(d.id);setTimeout(()=>openPort(d,+el.dataset.n),240);});}
@@ -1570,12 +1688,21 @@ function openRealityCheck(d){
   openSheet(`<h2>${I.bolt} Сверка с реальностью</h2>
     <div class="hint">Вставь JSON от агента (portmap-agent.py) или свой:<br>
       <span class="mono" style="font-size:11px">{"ports":{"1":"up","2":"down"}}</span></div>
+    <div class="field"><div style="display:flex;gap:8px">
+      <input id="rc_url" placeholder="https://…/sw-core.json" value="${esc(d.agentUrl||'')}" style="flex:1">
+      <button class="btn ghost" id="rc_fetch" style="padding:10px 14px">${t('load')}</button></div></div>
     <div class="field"><textarea id="rc_in" placeholder='{"ports":{"1":"up","2":"down","3":"up"}}'
       style="min-height:120px;font-family:'IBM Plex Mono',monospace;font-size:12px"></textarea></div>
-    <div class="btnrow"><button class="btn ghost" id="rc_cancel">Отмена</button>
-      <button class="btn prim" id="rc_go">Сверить</button></div>
+    <div class="btnrow"><button class="btn ghost" id="rc_cancel">${t('cancel')}</button>
+      <button class="btn prim" id="rc_go">${t('compare')}</button></div>
     <div id="rc_out" style="margin-top:14px"></div>`);
   document.getElementById('rc_cancel').onclick=closeSheet;
+  document.getElementById('rc_fetch').onclick=async()=>{
+    const u=val('rc_url');if(!u){toast('URL?');return;}
+    try{const res=await fetch(u,{cache:'no-store'});if(!res.ok)throw 0;
+      document.getElementById('rc_in').value=await res.text();
+      d.agentUrl=u;save();toast(t('loaded'));
+    }catch(e){toast(t('load_err'));}};
   document.getElementById('rc_go').onclick=()=>{
     let map;try{map=parseReality(val('rc_in'));}catch(e){toast('Не получилось разобрать JSON');return;}
     const n=Object.keys(map).length;if(!n){toast('В JSON нет портов');return;}
@@ -1626,8 +1753,10 @@ function renderRack(){
       <span style="margin-left:auto;color:var(--muted);font-size:11px;font-weight:400">${devs.length} об.</span></div>${chips}${rows}</div>`;}).join('');
   openSheet(`<h2>${I.mapg} Стойки</h2>
     <div class="hint">Раскладка по юнитам. Шкаф берётся из поля «Шкаф / стойка» объекта.</div>
-    ${html}<div class="btnrow" style="margin-top:12px"><button class="btn ghost" id="rk_close">Закрыть</button></div>`);
+    ${html}<div class="btnrow" style="margin-top:12px"><button class="btn ghost" id="rk_close">${t('close')}</button>
+      <button class="btn prim" id="rk_print">${I.pdf} ${t('rk_print')}</button></div>`);
   document.getElementById('rk_close').onclick=()=>{rackPlace=null;closeSheet();};
+  document.getElementById('rk_print').onclick=()=>{rackPlace=null;closeSheet();setTimeout(printRackPassport,200);};
   document.querySelectorAll('.rk-chip').forEach(el=>el.onclick=()=>{
     rackPlace=rackPlace===el.dataset.d?null:el.dataset.d;renderRack();});
   document.querySelectorAll('.rackdev').forEach(el=>el.onclick=e=>{
@@ -1641,11 +1770,234 @@ function renderRack(){
     logEvent(`${d.name} размещён: ${d.cabinet||'стойка'} · U${d.unit}`);
     save();rackPlace=null;renderRack();});}
 
+/* ============================================================
+   PRO+ v2 : undo, свободные порты, экспорт аудита, сверка по URL,
+   режим монтажника, чек-лист, сводка, заметки объекта, NetBox,
+   паспорт стойки, корзина, шифрованный экспорт, статистика
+   ============================================================ */
+
+/* ---------- тост с действием ---------- */
+function toastAct(msg,label,fn){const el=document.getElementById('toast');
+  el.textContent='';const s=document.createElement('span');s.textContent=msg;el.appendChild(s);
+  const b=document.createElement('button');b.textContent=label;
+  b.style.cssText='margin-left:10px;background:var(--brand);color:#1a1205;border:none;border-radius:7px;padding:5px 11px;font-weight:700;font-size:12px';
+  el.appendChild(b);el.classList.add('on');clearTimeout(el._t);
+  b.onclick=()=>{el.classList.remove('on');fn();};
+  el._t=setTimeout(()=>el.classList.remove('on'),6000);}
+
+/* ---------- undo (один шаг) ---------- */
+let UNDO=null;
+function snapUndo(d,n){UNDO={devId:d.id,n,port:d.ports[n]?JSON.parse(JSON.stringify(d.ports[n])):null};}
+function undoLast(){if(!UNDO)return;const d=devById(UNDO.devId);if(!d){UNDO=null;return;}
+  const n=UNDO.n;
+  if(d.ports[n]&&d.ports[n].link)removeReverse(d,n);
+  if(UNDO.port){d.ports[n]=UNDO.port;
+    if(UNDO.port.link){const o=devById(UNDO.port.link.deviceId);
+      if(o){o.ports[UNDO.port.link.port]=o.ports[UNDO.port.link.port]||{status:'up'};
+        o.ports[UNDO.port.link.port].link={deviceId:d.id,port:n};}}}
+  else delete d.ports[n];
+  logEvent(`${t('undone')}: ${d.name}:${n}`);UNDO=null;save();
+  if(view.deviceId===d.id)renderDevice();toast(t('undone'));}
+
+/* ---------- подбор свободных портов ---------- */
+function showFreePorts(){
+  const rows=DB.devices.map(d=>{const free=[];
+    for(let n=1;n<=d.portCount;n++){const p=d.ports[n];if(!p||(p.status||'free')==='free')free.push(n);}
+    return{d,free};}).filter(x=>x.free.length);
+  openSheet(`<h2>${t('free_ports')}</h2><div class="hint">${t('free_hint')}</div>
+    <div class="field"><input id="fp_q" placeholder="${t('free_filter')}"></div><div id="fp_out"></div>
+    <div class="btnrow"><button class="btn ghost" id="fp_close">${t('close')}</button></div>`);
+  const draw=q=>{q=(q||'').toLowerCase();
+    document.getElementById('fp_out').innerHTML=rows
+      .filter(x=>!q||[x.d.name,x.d.cabinet,x.d.location,x.d.site].some(v=>v&&String(v).toLowerCase().includes(q)))
+      .map(x=>`<div class="impitem gsr-i" data-d="${x.d.id}"><span class="id" style="background:var(--free)"></span>
+        <div style="min-width:0"><div>${esc(x.d.name)}${x.d.cabinet?' · '+esc(x.d.cabinet):''}</div>
+        <div style="font-size:11px;color:var(--muted)">${t('free_lbl')}: ${x.free.slice(0,14).join(', ')}${x.free.length>14?'…':''}</div></div>
+        <span class="im-sub">${x.free.length}</span></div>`).join('')||`<div class="hint">${t('nothing')}</div>`;
+    document.querySelectorAll('#fp_out .gsr-i').forEach(el=>el.onclick=()=>{closeSheet();openDevice(el.dataset.d);});};
+  draw('');document.getElementById('fp_q').oninput=e=>draw(e.target.value);
+  document.getElementById('fp_close').onclick=closeSheet;}
+
+/* ---------- сводка за период ---------- */
+function showShift(){let span=864e5;
+  const draw=()=>{const from=Date.now()-span,items=(DB.log||[]).filter(e=>e.ts>=from);
+    document.getElementById('sh_out').innerHTML=items.length?items.map(e=>
+      `<div class="impitem"><div><div>${esc(e.text)}</div>
+       <div style="font-size:11px;color:var(--muted);margin-top:2px">${esc(e.user)} · ${relTime(e.ts)}</div></div></div>`).join('')
+      :`<div class="hint">${t('nothing')}</div>`;
+    document.getElementById('sh_n').textContent=items.length;};
+  openSheet(`<h2>${t('shift')}</h2><div class="hint">${t('shift_hint')} · <b id="sh_n">0</b></div>
+    <div class="seg" id="sh_seg" style="margin-bottom:10px">
+      <button data-s="${864e5}" class="sel">24${t('h_short')}</button>
+      <button data-s="${7*864e5}">7${t('d_short')}</button>
+      <button data-s="${30*864e5}">30${t('d_short')}</button></div>
+    <div id="sh_out"></div>
+    <div class="btnrow" style="margin-top:12px"><button class="btn ghost" id="sh_close">${t('close')}</button>
+      <button class="btn prim" id="sh_print">${t('print')}</button></div>`);
+  document.querySelectorAll('#sh_seg button').forEach(b=>b.onclick=()=>{span=+b.dataset.s;
+    document.querySelectorAll('#sh_seg button').forEach(x=>x.classList.toggle('sel',x===b));draw();});
+  draw();
+  document.getElementById('sh_close').onclick=closeSheet;
+  document.getElementById('sh_print').onclick=()=>{const from=Date.now()-span;
+    const items=(DB.log||[]).filter(e=>e.ts>=from);
+    printHTML(`<div class="rpt"><div class="rh"><h1>${t('shift')}</h1>
+      <div class="rsub">${new Date(from).toLocaleString()} — ${new Date().toLocaleString()}</div></div>
+      <table class="rt"><thead><tr><th>${t('when')}</th><th>${t('who')}</th><th>${t('what')}</th></tr></thead><tbody>
+      ${items.map(e=>`<tr><td class="pn">${new Date(e.ts).toLocaleString()}</td><td>${esc(e.user)}</td><td>${esc(e.text)}</td></tr>`).join('')}
+      </tbody></table><div class="rf">PortMap Pro</div></div>`);};}
+
+/* ---------- заметки объекта ---------- */
+function showDevNotes(d){
+  const draw=()=>document.getElementById('dn_list').innerHTML=(d.notes||[]).map((e,i)=>
+    `<div class="impitem"><div style="flex:1"><div>${esc(e.text)}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">${esc(e.user)} · ${relTime(e.ts)}</div></div>
+      <button class="rd-x dn-del" data-i="${i}" style="background:none;border:none;color:var(--muted);font-size:16px">×</button></div>`).join('')
+    ||`<div class="hint">${t('nothing')}</div>`;
+  openSheet(`<h2>${t('obj_notes')}</h2><div class="hint">${esc(d.name)}</div>
+    <div class="field"><textarea id="dn_in" placeholder="${t('note_ph')}" style="min-height:60px"></textarea></div>
+    <div class="btnrow"><button class="btn prim" id="dn_add" style="flex:1">${t('add')}</button></div>
+    <div id="dn_list" style="margin-top:12px"></div>
+    <div class="btnrow" style="margin-top:12px"><button class="btn ghost" id="dn_close">${t('close')}</button></div>`);
+  const bind=()=>document.querySelectorAll('.dn-del').forEach(b=>b.onclick=()=>{
+    d.notes.splice(+b.dataset.i,1);save();draw();bind();});
+  draw();bind();
+  document.getElementById('dn_close').onclick=closeSheet;
+  document.getElementById('dn_add').onclick=()=>{const v=val('dn_in');if(!v)return;
+    d.notes=d.notes||[];d.notes.unshift({ts:Date.now(),user:(DB.account&&DB.account.name)||'—',text:v});
+    if(d.notes.length>50)d.notes.length=50;
+    logEvent(`${d.name}: ${t('note_added')}`);save();
+    document.getElementById('dn_in').value='';draw();bind();};}
+
+/* ---------- чек-лист приёмки ---------- */
+const CHK_KEYS=['chk_fw','chk_vlan','chk_snmp','chk_uplink','chk_qr','chk_cfg'];
+function showChecklist(d){d.check=d.check||{};
+  const draw=()=>{document.getElementById('ck_list').innerHTML=CHK_KEYS.map(k=>
+    `<div class="menu-item ck-i" data-k="${k}" style="${d.check[k]?'color:var(--up)':''}">
+      ${d.check[k]?'☑':'☐'} ${t(k)}</div>`).join('');
+    const done=CHK_KEYS.filter(k=>d.check[k]).length;
+    document.getElementById('ck_p').textContent=done+'/'+CHK_KEYS.length;
+    document.querySelectorAll('.ck-i').forEach(el=>el.onclick=()=>{
+      d.check[el.dataset.k]=!d.check[el.dataset.k];save();draw();});};
+  openSheet(`<h2>${t('checklist')}</h2><div class="hint">${esc(d.name)} · <b id="ck_p"></b></div>
+    <div id="ck_list"></div>
+    <div class="btnrow" style="margin-top:12px"><button class="btn ghost" id="ck_close">${t('close')}</button></div>`);
+  draw();document.getElementById('ck_close').onclick=closeSheet;}
+
+/* ---------- NetBox CSV ---------- */
+function exportNetbox(){
+  const dl=(name,rows)=>{const blob=new Blob(['\ufeff'+rows.join('\n')],{type:'text/csv;charset=utf-8'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);};
+  const devRows=['name,device_role,manufacturer,model,site,rack,position,status'];
+  DB.devices.forEach(d=>devRows.push([d.name,d.type==='panel'?'patch-panel':'access-switch',
+    (d.model||'').split(' ')[0]||'','"'+(d.model||'')+'"',d.site||'',d.cabinet||'',d.unit||'','active']
+    .map(v=>String(v).includes(',')?'"'+v+'"':v).join(',')));
+  const ifRows=['device,name,type,enabled,description'];
+  DB.devices.forEach(d=>{for(let n=1;n<=d.portCount;n++){const p=d.ports[n]||{};
+    const desc=[p.device,p.ip,p.mac,p.vlan&&'VLAN '+p.vlan,p.cableId&&'cable '+p.cableId].filter(Boolean).join(' | ');
+    ifRows.push([d.name,(d.sfpFrom&&n>=d.sfpFrom?'sfp':'eth')+n,
+      d.sfpFrom&&n>=d.sfpFrom?'1000base-x-sfp':'1000base-t',
+      (p.status||'free')!=='free','"'+desc.replace(/"/g,"'")+'"'].join(','));}});
+  dl('netbox-devices.csv',devRows);setTimeout(()=>dl('netbox-interfaces.csv',ifRows),400);
+  toast(t('nb_done'));}
+
+/* ---------- паспорт стойки (печать) ---------- */
+function printRackPassport(){
+  const groups={};
+  DB.devices.forEach(d=>{const k=d.cabinet&&d.cabinet.trim();if(k)(groups[k]=groups[k]||[]).push(d);});
+  const cabs=Object.keys(groups).sort((a,b)=>a.localeCompare(b,'ru'));
+  if(!cabs.length){toast(t('rk_nocab'));return;}
+  const html=cabs.map(cab=>{const devs=groups[cab].slice().sort((a,b)=>(b.unit||0)-(a.unit||0));
+    return `<div class="rpt" style="page-break-after:always"><div class="rh"><h1>${esc(cab)}</h1>
+      <div class="rsub">${t('rk_passport')} · ${new Date().toLocaleDateString()}</div></div>
+      <table class="rt"><thead><tr><th>U</th><th>${t('object')}</th><th>${t('model')}</th><th>IP</th><th>QR</th></tr></thead><tbody>
+      ${devs.map(d=>`<tr><td class="pn">${d.unit||'—'}</td><td><b>${esc(d.name)}</b></td>
+        <td>${esc(d.model||'')}</td><td class="pn">${esc(d.mgmtIp||'')}</td>
+        <td><div id="rq-${d.id}" style="width:64px;height:64px"></div></td></tr>`).join('')}
+      </tbody></table><div class="rf">PortMap Pro · ${t('rk_passport')}</div></div>`;}).join('');
+  printHTML(html);
+  setTimeout(()=>{cabs.forEach(cab=>groups[cab].forEach(d=>{
+    const el=document.getElementById('rq-'+d.id);if(!el)return;el.innerHTML='';
+    new QRCode(el,{text:`#PMD:${d.id}# PortMap объект | ${d.name}`,width:64,height:64,correctLevel:QRCode.CorrectLevel.M});}));},60);}
+
+/* ---------- корзина (30 дней, IndexedDB) ---------- */
+async function trashPush(d){try{const r=await IDB.get('portmap_trash');
+  const list=r?JSON.parse(r):[];list.unshift({ts:Date.now(),device:d});
+  await IDB.set('portmap_trash',JSON.stringify(list.slice(0,50)));}catch(e){}}
+async function trashPurge(){try{const r=await IDB.get('portmap_trash');if(!r)return;
+  const list=JSON.parse(r).filter(x=>Date.now()-x.ts<30*864e5);
+  await IDB.set('portmap_trash',JSON.stringify(list));}catch(e){}}
+async function showTrash(){
+  let list=[];
+  try{const r=await IDB.get('portmap_trash');list=r?JSON.parse(r):[];}
+  catch(e){console.error('trash:',e);toast(t('trash_err'));return;}
+  {
+    openSheet(`<h2>${I.trash} ${t('trash')}</h2><div class="hint">${t('trash_hint')}</div>
+      <div id="tr_list">${list.length?list.map((x,i)=>
+        `<div class="impitem"><div style="flex:1"><div>${esc(x.device.name)}</div>
+          <div style="font-size:11px;color:var(--muted)">${esc(x.device.model||'')} · ${relTime(x.ts)}</div></div>
+          <button class="btn ghost tr-res" data-i="${i}" style="padding:6px 12px;font-size:12px">${t('restore')}</button></div>`).join('')
+        :`<div class="hint">${t('trash_empty')}</div>`}</div>
+      <div class="btnrow" style="margin-top:12px"><button class="btn ghost" id="tr_close">${t('close')}</button></div>`);
+    document.getElementById('tr_close').onclick=closeSheet;
+    document.querySelectorAll('.tr-res').forEach(b=>b.onclick=()=>{
+      const x=list[+b.dataset.i];if(!x)return;
+      const d=x.device;if(DB.devices.some(v=>v.id===d.id))d.id=uid();
+      /* ссылки на другие объекты могли протухнуть — чистим битые */
+      Object.values(d.ports||{}).forEach(p=>{if(p.link&&!devById(p.link.deviceId))delete p.link;});
+      DB.devices.push(d);list.splice(+b.dataset.i,1);
+      IDB.set('portmap_trash',JSON.stringify(list)).catch(()=>{});
+      logEvent(`${t('restored')}: ${d.name}`);save();closeSheet();renderHome();toast(t('restored'));});
+  }}
+
+/* ---------- шифрованный экспорт / импорт (AES-GCM + PBKDF2) ---------- */
+function b64e(u8){let s='';for(let i=0;i<u8.length;i+=0x8000)s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));return btoa(s);}
+function b64d(s){const bin=atob(s),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return u;}
+async function cryptoKey(pass,salt){
+  const km=await crypto.subtle.importKey('raw',new TextEncoder().encode(pass),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:150000,hash:'SHA-256'},km,
+    {name:'AES-GCM',length:256},false,['encrypt','decrypt']);}
+async function exportEncrypted(){
+  const pass=prompt(t('enc_ask'));if(!pass)return;
+  try{
+    const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12));
+    const key=await cryptoKey(pass,salt);
+    const payload=new TextEncoder().encode(JSON.stringify({devices:DB.devices,log:DB.log||[]}));
+    const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,payload));
+    const doc={app:'PortMap',enc:1,v:1,salt:b64e(salt),iv:b64e(iv),data:b64e(ct)};
+    const blob=new Blob([JSON.stringify(doc)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='portmap-encrypted.json';a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    DB.lastBackup=Date.now();DB.chg=0;save();toast(t('enc_done'));
+  }catch(e){toast(t('enc_err'));}}
+async function importEncrypted(doc){
+  const pass=prompt(t('enc_ask_dec'));if(!pass)return;
+  try{
+    const key=await cryptoKey(pass,b64d(doc.salt));
+    const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64d(doc.iv)},key,b64d(doc.data));
+    const data=JSON.parse(new TextDecoder().decode(pt)),list=data.devices||[];
+    list.forEach(d=>{if(!d.id||DB.devices.some(v=>v.id===d.id))d.id=uid();if(!d.ports)d.ports={};DB.devices.push(d);});
+    save();closeSheet();renderHome();toast(t('imported')+': '+list.length);
+  }catch(e){toast(t('enc_badpass'));}}
+
+/* ---------- график заполненности ---------- */
+function sparkHTML(){const s=DB.statHist||[];if(s.length<2)return '';
+  const w=320,hh=34,max=Math.max(...s.map(x=>x.u),1);
+  const pts=s.map((x,i)=>`${(i/(s.length-1)*w).toFixed(1)},${(hh-4-(x.u/max)*(hh-8)).toFixed(1)}`).join(' ');
+  return `<div style="margin:8px 2px 0"><svg viewBox="0 0 ${w} ${hh}" style="width:100%;height:${hh}px" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="var(--brand)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity=".8"/></svg><div style="font-size:10px;color:var(--muted);text-align:right;margin-top:-2px">${t('stat_trend')}</div></div>`;}
+
 /* ============ start ============ */
 applyTheme();
 boot();
+/* Аппаратная кнопка «Назад» (телефон): шторка → объект → главный экран → выход */
+try{history.replaceState({pm:'root'},'');}catch(e){}
+window.addEventListener('popstate',()=>{
+  if(sheet.classList.contains('on')){closeSheet();return;}
+  if(view.deviceId)goHome();
+});
 /* если localStorage пуст/битый — поднимаем данные из IndexedDB и перерисовываем */
 loadIDB().then(changed=>{if(changed){applyTheme();boot();}});
+trashPurge(); /* удаляем из корзины то, чему больше 30 дней */
 if('serviceWorker' in navigator){window.addEventListener('load',()=>{
   navigator.serviceWorker.register('sw.js').then(reg=>{
     reg.addEventListener('updatefound',()=>{const w=reg.installing;
