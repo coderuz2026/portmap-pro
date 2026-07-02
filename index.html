@@ -297,26 +297,74 @@ input,textarea,select{font-family:inherit}
 #printArea .lbl .lq img,#printArea .lbl .lq canvas{display:block}
 #printArea .lbl .lt{font-size:9px;line-height:1.25}
 #printArea .lbl .lt b{font-size:10px}
+/* ===== PRO+ : стойка и глобальный поиск ===== */
+.rackbox{border:1px solid var(--line);border-radius:12px;background:var(--bg2);margin:10px 0;overflow:hidden}
+.rackhead{padding:9px 12px;font-weight:700;font-size:13px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+.racku{display:flex;align-items:stretch;border-bottom:1px solid var(--line);min-height:30px}
+.racku:last-child{border-bottom:none}
+.racku .un{width:34px;display:grid;place-items:center;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);border-right:1px solid var(--line);flex-shrink:0}
+.racku .uslot{flex:1;display:flex;align-items:center;padding:3px 8px;cursor:pointer}
+.racku .uslot:active{background:var(--surface)}
+.racku.place .uslot{background:rgba(245,166,35,.07);outline:1px dashed var(--brand);outline-offset:-3px}
+.rackdev{flex:1;display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:5px 9px;font-size:12.5px;font-weight:600;min-width:0}
+.rackdev .rd-nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rackdev .rd-x{margin-left:auto;color:var(--muted);font-size:15px;padding:0 4px;flex-shrink:0}
+.rackfree{flex:1;color:var(--muted);font-size:11px;opacity:.45}
+.gsr-i{cursor:pointer}
+.gsr-i .gs-port{font-family:'IBM Plex Mono',monospace;color:var(--brand);flex-shrink:0}
 </style>
 </head>
 <body>
 <div id="root"></div>
 <div id="app" class="hidden"></div>
 <div class="sheet-bg" id="bg"></div>
-<div class="sheet" id="sheet"></div>
-<div class="toast" id="toast"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 /* ============ storage ============ */
 const Store=(()=>{let mem={},ok=true;
   try{const k='__pm_t';localStorage.setItem(k,'1');localStorage.removeItem(k);}catch(e){ok=false;}
-  return{get(k){try{return ok?localStorage.getItem(k):mem[k]??null;}catch(e){return mem[k]??null;}},
-         set(k,v){try{ok?localStorage.setItem(k,v):mem[k]=v;}catch(e){mem[k]=v;}}};})();
+  return{get(k){if(mem[k]!==undefined)return mem[k];/* свежая запись после сбоя квоты приоритетнее */
+           try{return ok?localStorage.getItem(k):null;}catch(e){return null;}},
+         set(k,v){try{if(ok){localStorage.setItem(k,v);delete mem[k];}else{mem[k]=v;}return true;}catch(e){mem[k]=v;return false;}}};})();
+
+/* IndexedDB — надёжное основное хранилище (без лимита ~5МБ).
+   localStorage остаётся быстрым кэшем для мгновенного старта. */
+const IDB=(()=>{let db=null;
+  function open(){return new Promise((res,rej)=>{if(db)return res(db);
+    if(!('indexedDB' in window))return rej(new Error('no idb'));
+    const r=indexedDB.open('portmap',1);
+    r.onupgradeneeded=()=>r.result.createObjectStore('kv');
+    r.onsuccess=()=>{db=r.result;res(db);};r.onerror=()=>rej(r.error);});}
+  return{
+    get(k){return open().then(d=>new Promise((res,rej)=>{const q=d.transaction('kv').objectStore('kv').get(k);
+      q.onsuccess=()=>res(q.result??null);q.onerror=()=>rej(q.error);}));},
+    set(k,v){return open().then(d=>new Promise((res,rej)=>{const tx=d.transaction('kv','readwrite');
+      tx.objectStore('kv').put(v,k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);}));}
+  };})();
 
 let DB={account:null,devices:[],pro:false};
+let _lsWarned=false;
 function load(){const r=Store.get('portmap_db');if(r){try{DB=JSON.parse(r);}catch(e){}}}
-function save(){Store.set('portmap_db',JSON.stringify(DB));if(CLOUD.enabled&&_fb&&_fb.user)cloudPush().catch(()=>{});}
-function applyTheme(){document.body.classList.toggle('light',DB.theme==='light');}
+async function loadIDB(){/* восстановление из IndexedDB, если localStorage пуст, битый или переполнялся */
+  try{const r=await IDB.get('portmap_db');if(!r)return false;
+    const cur=Store.get('portmap_db');
+    if(!cur||cur.length<r.length){const parsed=JSON.parse(r);DB=parsed;Store.set('portmap_db',r);return true;}
+  }catch(e){}
+  return false;}
+function save(){const json=JSON.stringify(DB);
+  const ok=Store.set('portmap_db',json);
+  if(!ok&&!_lsWarned){_lsWarned=true;toast('⚠ localStorage переполнен — данные пишутся в IndexedDB');}
+  IDB.set('portmap_db',json).catch(()=>{});
+  if(CLOUD.enabled&&_fb&&_fb.user)cloudPush().catch(()=>{});}
+const _mq=window.matchMedia?matchMedia('(prefers-color-scheme: light)'):null;
+function applyTheme(){
+  /* без явного выбора пользователя следуем системной теме */
+  const light=DB.theme?DB.theme==='light':!!(_mq&&_mq.matches);
+  document.body.classList.toggle('light',light);
+  const m=document.querySelector('meta[name="theme-color"]');if(m)m.content=light?'#eef1f5':'#0a0e13';}
+if(_mq&&_mq.addEventListener)_mq.addEventListener('change',()=>{if(!DB.theme)applyTheme();});
 
 /* ============ i18n (RU/UZ/EN) — основные экраны ============ */
 const LANG={
@@ -510,7 +558,8 @@ async function doRegister(){
   if(!name){return fail(err,'Введи имя');}
   if(p.length<4){return fail(err,'Пароль слишком короткий');}
   if(p!==p2){return fail(err,'Пароли не совпадают');}
-  DB.account={name,hash:await sha256(p),created:new Date().toISOString()};
+  const salt=[...crypto.getRandomValues(new Uint8Array(16))].map(x=>x.toString(16).padStart(2,'0')).join('');
+  DB.account={name,salt,hash:await sha256(salt+p),created:new Date().toISOString()};
   save();authed=true;boot();toast('Аккаунт создан 🎉');
 }
 function renderLogin(){
@@ -535,7 +584,13 @@ function renderLogin(){
 }
 async function doLogin(){
   const p=val('l_pass'),err=document.getElementById('l_err');
-  if(await sha256(p)===DB.account.hash){authed=true;boot();}
+  const a=DB.account;let okp=false;
+  if(a.salt){okp=(await sha256(a.salt+p))===a.hash;}
+  else{okp=(await sha256(p))===a.hash;
+    if(okp){/* миграция старого несолёного хэша */
+      const salt=[...crypto.getRandomValues(new Uint8Array(16))].map(x=>x.toString(16).padStart(2,'0')).join('');
+      a.salt=salt;a.hash=await sha256(salt+p);save();}}
+  if(okp){authed=true;boot();}
   else{fail(err,'Неверный пароль');document.querySelector('.auth').classList.add('shake');
     setTimeout(()=>document.querySelector('.auth')?.classList.remove('shake'),360);}
 }
@@ -627,8 +682,8 @@ function renderHome(){
   app.innerHTML=`
     <div class="topbar"><div class="logo">${I.logo}<b>PortMap</b>${DB.pro?'<span class="pro">PRO</span>':''}</div>
       <div class="spacer"></div>
-      <button class="iconbtn" id="scanBtn" title="Сканировать QR">${I.scan}</button>
-      <button class="iconbtn" id="menuBtn">${I.dots}</button></div>
+      <button class="iconbtn" id="scanBtn" title="Сканировать QR" aria-label="Сканировать QR">${I.scan}</button>
+      <button class="iconbtn" id="menuBtn" aria-label="Меню">${I.dots}</button></div>
     <div class="wrap">
       ${backupStale()?`<div class="photohint" id="bkBanner" style="display:flex;align-items:center;gap:10px;text-align:left;justify-content:space-between">
         <span style="flex:1">${t('backup_nudge')}</span>
@@ -639,6 +694,7 @@ function renderHome(){
         <div class="stat"><div class="n">${docPorts}</div><div class="l">${t('portsUsed')}</div></div>
         <div class="stat"><div class="n">${totalPorts}</div><div class="l">${t('portsTotal')}</div></div>
       </div>
+      ${DB.devices.length>1?`<div class="search">${I.search}<input id="gsearch" placeholder="Поиск по всем объектам: устройство, кабель, VLAN…"></div><div id="gsr"></div>`:''}
       ${DB.devices.length?renderDeviceList():emptyHome()}
     </div>
     <button class="fab" id="addBtn">${I.plus} ${t('addSwitch')}</button>`;
@@ -648,6 +704,13 @@ function renderHome(){
   const bd=document.getElementById('bkDo');if(bd)bd.onclick=()=>exportData(DB.devices,'portmap-backup.json');
   const bl=document.getElementById('bkLater');if(bl)bl.onclick=()=>{DB.backupSnooze=Date.now();save();renderHome();};
   app.querySelectorAll('.dev').forEach(el=>el.onclick=()=>openDevice(el.dataset.id));
+  const gs=document.getElementById('gsearch');
+  if(gs)gs.oninput=()=>{const q=gs.value.trim(),out=document.getElementById('gsr');
+    if(q.length<2){out.innerHTML='';return;}
+    out.innerHTML=globalSearchHTML(q);
+    out.querySelectorAll('.gsr-i').forEach(el=>el.onclick=()=>{
+      const d=devById(el.dataset.d);if(!d)return;
+      openDevice(d.id);if(el.dataset.n)setTimeout(()=>openPort(d,+el.dataset.n),240);});};
 }
 function renderDeviceList(){
   const hasSite=DB.devices.some(d=>d.site);
@@ -675,9 +738,9 @@ function renderDevice(){
   const d=DB.devices.find(x=>x.id===view.deviceId);if(!d)return goHome();
   const c=counts(d),app=document.getElementById('app');
   app.innerHTML=`
-    <div class="topbar"><button class="iconbtn" id="backBtn">${I.back}</button>
+    <div class="topbar"><button class="iconbtn" id="backBtn" aria-label="Назад">${I.back}</button>
       <div class="logo"><b style="font-size:16px">${esc(d.name)}</b></div>
-      <div class="spacer"></div><button class="iconbtn" id="devMenu">${I.dots}</button></div>
+      <div class="spacer"></div><button class="iconbtn" id="devMenu" aria-label="Меню объекта">${I.dots}</button></div>
     <div class="devhead"><div class="meta mono">${esc(d.model||'—')}${d.location?' · '+esc(d.location):''}</div></div>
     <div class="chips">
       <div class="chip"><span class="dot" style="background:var(--up)"></span>Активны <b>${c.up}</b></div>
@@ -751,6 +814,7 @@ function openPort(d,n){
     <div class="field"><label>Локация / розетка</label><input id="f_loc" placeholder="Каб. 204, патч-панель P2:14" value="${esc(p.location||'')}"></div>
     <div class="field"><label>Заметка</label><textarea id="f_note" placeholder="Что важно помнить…">${esc(p.note||'')}</textarea></div>
     <div class="field"><label>Связь / кабель-трасса</label><div id="linkArea"></div></div>
+    ${histHTML(p)}
     <div class="qrbox" id="qrbox"><div class="qrcard"><div id="qr"></div></div><p id="qrtext"></p></div>
     <div class="btnrow"><button class="btn ghost" id="qrBtn">${I.qr} QR</button>
       <button class="btn ghost" id="nfcBtn">${I.nfc} NFC</button></div>
@@ -779,7 +843,12 @@ function savePort(){const p=readPort();const cur=editPort.d.ports[editPort.n]||{
   if(p.mode==='access')delete p.mode;
   const empty=p.status==='free'&&p.mode!=='trunk'&&!p.device&&!p.vlan&&!p.cableId&&!p.location&&!p.note&&!link;
   if(empty){removeReverse(editPort.d,editPort.n);delete editPort.d.ports[editPort.n];}
-  else{if(link)p.link=link;editPort.d.ports[editPort.n]=p;}
+  else{if(link)p.link=link;
+    /* переносим историю и фиксируем изменения */
+    if(cur.hist)p.hist=cur.hist;
+    p.ts=(cur.status||'free')!==p.status?Date.now():(cur.ts||Date.now());
+    const ch=portDiff(cur,p);if(ch.length)portHist(p,ch.join('; '));
+    editPort.d.ports[editPort.n]=p;}
   logEvent(`${editPort.d.name} · порт ${editPort.n}: ${empty?'очищен':(STATLBL[p.status]||p.status)+(p.mode==='trunk'?' (trunk)':'')}`);
   save();closeSheet();renderDevice();toast('Сохранено');}
 function showQR(){const p=readPort(),d=editPort.d;
@@ -858,8 +927,12 @@ function doLink(aD,aN,bDId,bN){const bD=devById(bDId);if(!bD)return;
   if(!bD.ports[bN])bD.ports[bN]={status:bD.type==='panel'?'reserved':'up'};
   removeReverse(aD,aN);removeReverse(bD,bN);
   aD.ports[aN].link={deviceId:bD.id,port:bN};
-  bD.ports[bN].link={deviceId:aD.id,port:aN};logEvent(`Связь: ${aD.name}:${aN} ↔ ${bD.name}:${bN}`);save();}
-function doUnlink(d,n){removeReverse(d,n);if(d.ports[n])delete d.ports[n].link;logEvent(`Отвязан порт ${d.name}:${n}`);save();}
+  bD.ports[bN].link={deviceId:aD.id,port:aN};
+  portHist(aD.ports[aN],`Связан с ${bD.name}:${bN}`);portHist(bD.ports[bN],`Связан с ${aD.name}:${aN}`);
+  logEvent(`Связь: ${aD.name}:${aN} ↔ ${bD.name}:${bN}`);save();}
+function doUnlink(d,n){removeReverse(d,n);
+  if(d.ports[n]){delete d.ports[n].link;portHist(d.ports[n],'Связь удалена');}
+  logEvent(`Отвязан порт ${d.name}:${n}`);save();}
 function nodeLabel(d,n){const p=d.ports[n]||{};
   const meta=[p.device,p.location,p.cableId?'каб '+p.cableId:''].filter(Boolean).join(' · ');
   return{top:`${esc(d.name)} · порт ${n}`,sub:meta?esc(meta):(d.type==='panel'?'патч-панель':'свитч')};}
@@ -1092,7 +1165,10 @@ function parseCLI(text,d){
   let count=0,type='';
   const macRe=/([0-9a-f]{4}\.[0-9a-f]{4}\.[0-9a-f]{4}|(?:[0-9a-f]{2}[:-]){5}[0-9a-f]{2})/i;
   const lines=text.split(/\r?\n/);
-  const set=(n,patch)=>{if(n<1||n>d.portCount)return;d.ports[n]=Object.assign({status:'up'},d.ports[n]||{},patch);count++;};
+  const set=(n,patch)=>{if(n<1||n>d.portCount)return;
+    const old=d.ports[n],merged=Object.assign({status:'up'},old||{},patch);
+    if(!old||old.status!==merged.status)merged.ts=Date.now();
+    d.ports[n]=merged;count++;};
   if(/device id|local intrfce/i.test(text)){type='CDP-соседи';
     lines.forEach(l=>{const m=l.match(/^\s*(\S+)\s+([A-Za-z]{2,3}\s?\d[\d\/]*)/);
       if(m){const n=ifPort(m[2].replace(/\s/,''));if(n)set(n,{status:'up',mode:'trunk',device:m[1]});}});}
@@ -1236,6 +1312,7 @@ function openDeviceMenu(d){
   openSheet(`<h2 style="margin-bottom:14px">${esc(d.name)}</h2>
     <div class="menu-item" id="m_edit">${I.edit} Изменить объект</div>
     <div class="menu-item" id="m_cli">${I.csv} Импорт из вывода команды</div>
+    <div class="menu-item" id="m_real">${I.bolt} Сверка с реальностью (агент)</div>
     <div class="menu-item" id="m_bulk">${I.bolt} Массовое редактирование</div>
     <div class="menu-item" id="m_photo">${I.photo} Фото и разметка портов</div>
     <div class="menu-item" id="m_impact">${I.bolt} Impact-анализ (весь объект)</div>
@@ -1246,6 +1323,7 @@ function openDeviceMenu(d){
     <div class="menu-item warn" id="m_del">${I.trash} Удалить объект</div>`);
   document.getElementById('m_edit').onclick=()=>{closeSheet();setTimeout(()=>openDeviceForm(d),120);};
   document.getElementById('m_cli').onclick=()=>{closeSheet();setTimeout(()=>openCliImport(d),140);};
+  document.getElementById('m_real').onclick=()=>{closeSheet();setTimeout(()=>openRealityCheck(d),140);};
   document.getElementById('m_bulk').onclick=()=>{closeSheet();setTimeout(()=>openBulk(d),140);};
   document.getElementById('m_photo').onclick=()=>{closeSheet();setTimeout(()=>openPhotoMapper(d),160);};
   document.getElementById('m_impact').onclick=()=>{closeSheet();setTimeout(()=>showImpactDevice(d),160);};
@@ -1262,6 +1340,8 @@ function openMenu(){
     <div class="hint">${t('loggedAs')} ${esc(DB.account?.name||DB.cloudEmail||'—')}${CLOUD.enabled?' · ☁ облако':''}</div>
     <div class="menu-item" id="m_ai">${I.ai} ${t('ai_diag')}</div>
     <div class="menu-item" id="m_topo">${I.mapg} ${t('topology')}</div>
+    <div class="menu-item" id="m_audit">${I.bolt} Проверка сети (аудит)</div>
+    <div class="menu-item" id="m_rack">${I.mapg} Стойки (юниты)</div>
     <div class="menu-item" id="m_log">${I.edit} ${t('changelog')}</div>
     <div class="menu-item" id="m_theme">${I.theme} ${t('theme')}: ${DB.theme==='light'?t('theme_light'):t('theme_dark')}</div>
     <div class="menu-item" id="m_lang">🌐 ${t('language')}: ${({ru:'Русский',uz:'O‘zbek',en:'English'})[DB.lang||'ru']}</div>
@@ -1273,6 +1353,8 @@ function openMenu(){
     <div class="menu-item warn" id="m_out">${I.out} ${t('logout')}</div>`);
   document.getElementById('m_ai').onclick=()=>{closeSheet();setTimeout(openAI,160);};
   document.getElementById('m_topo').onclick=()=>{closeSheet();setTimeout(showTopology,160);};
+  document.getElementById('m_audit').onclick=()=>{closeSheet();setTimeout(showAudit,160);};
+  document.getElementById('m_rack').onclick=()=>{closeSheet();setTimeout(showRack,160);};
   document.getElementById('m_log').onclick=()=>{closeSheet();setTimeout(showChangelog,160);};
   document.getElementById('m_theme').onclick=()=>{DB.theme=DB.theme==='light'?'dark':'light';save();applyTheme();closeSheet();setTimeout(openMenu,60);};
   document.getElementById('m_lang').onclick=langCycle;
@@ -1379,10 +1461,198 @@ function printLabels(d){
     new QRCode(el,{text:`#PM:${d.id}:${n}# PortMap | ${d.name} | Порт ${n}`,width:90,height:90,correctLevel:QRCode.CorrectLevel.M});}},60);
 }
 
+/* ============================================================
+   PRO+ : аудит сети, глобальный поиск, сверка с реальностью,
+   история порта, вид стойки
+   ============================================================ */
+
+/* ---------- история порта ---------- */
+function portHist(p,text){p.hist=p.hist||[];
+  p.hist.unshift({ts:Date.now(),user:(DB.account&&DB.account.name)||DB.cloudEmail||'—',text});
+  if(p.hist.length>15)p.hist.length=15;}
+function portDiff(cur,p){
+  const F={status:'статус',mode:'режим',device:'устройство',vlan:'VLAN',cableId:'кабель',location:'локация',note:'заметка'};
+  const fmt=(k,v)=>k==='status'?(STATLBL[v||'free']||v):(v||'—');
+  const ch=[];Object.keys(F).forEach(k=>{
+    let a=String(cur[k]??''),b=String(p[k]??'');
+    if(k==='status'){a=a||'free';b=b||'free';}
+    if(a!==b)ch.push(`${F[k]}: ${fmt(k,a)} → ${fmt(k,b)}`);});
+  return ch;}
+function histHTML(p){if(!p.hist||!p.hist.length)return '';
+  return `<div class="field"><label>История порта</label>${p.hist.slice(0,6).map(e=>
+    `<div class="impitem"><div><div>${esc(e.text)}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">${esc(e.user)} · ${relTime(e.ts)}</div></div></div>`).join('')}</div>`;}
+
+/* ---------- аудит сети ---------- */
+function runAudit(){
+  const r={dup:[],mode:[],vlan:[],fault:[],stale:[]},byCable={},STALE=30*24*3600*1000;
+  DB.devices.forEach(d=>{for(let n=1;n<=d.portCount;n++){const p=d.ports[n];if(!p)continue;
+    if(p.cableId){const k=String(p.cableId).trim().toLowerCase();
+      if(k)(byCable[k]=byCable[k]||[]).push({d,n,id:p.cableId});}
+    if(p.status==='fault')r.fault.push({d,n,text:`${d.name}:${n}`+(p.device?' · '+p.device:'')});
+    if(p.status==='reserved'&&p.ts&&Date.now()-p.ts>STALE)
+      r.stale.push({d,n,text:`${d.name}:${n} — в резерве ${Math.floor((Date.now()-p.ts)/86400000)} дн.`+(p.device?' · '+p.device:'')});
+    const lk=p.link;if(!lk)continue;
+    const o=devById(lk.deviceId),q=o&&o.ports[lk.port];
+    const once=o&&q&&(d.id<o.id||(d.id===o.id&&n<lk.port)); /* каждую пару линка проверяем один раз */
+    if(!once)continue;
+    if(d.type!=='panel'&&o.type!=='panel'){
+      const am=p.mode==='trunk',bm=q.mode==='trunk';
+      if(am!==bm)r.mode.push({d,n,text:`${d.name}:${n} (${am?'trunk':'access'}) ↔ ${o.name}:${lk.port} (${bm?'trunk':'access'})`});
+      else if(!am&&p.vlan&&q.vlan&&String(p.vlan).trim()!==String(q.vlan).trim())
+        r.vlan.push({d,n,text:`${d.name}:${n} VLAN ${p.vlan} ↔ ${o.name}:${lk.port} VLAN ${q.vlan}`});
+    }}});
+  Object.values(byCable).forEach(arr=>{if(arr.length>1)
+    r.dup.push({d:arr[0].d,n:arr[0].n,text:`«${arr[0].id}»: `+arr.map(x=>`${x.d.name}:${x.n}`).join(', ')});});
+  return r;}
+function showAudit(){
+  const r=runAudit(),total=r.dup.length+r.mode.length+r.vlan.length+r.fault.length+r.stale.length;
+  const sec=(title,arr,color)=>arr.length?
+    `<div class="hint" style="margin-top:14px;font-weight:600;color:${color}">${title} · ${arr.length}</div>`+
+    arr.map(x=>`<div class="impitem gsr-i audit-i" data-d="${x.d.id}" data-n="${x.n}">
+      <span class="id" style="background:${color}"></span><div>${esc(x.text)}</div></div>`).join(''):'';
+  openSheet(`<h2>${I.bolt} Проверка сети</h2>
+    <div class="hint">${total?`Найдено проблем: <b>${total}</b> · тап по строке — к порту`:'Проблем не найдено — документация чистая ✓'}</div>
+    ${sec('Дубликаты кабель-ID',r.dup,'var(--fault)')}
+    ${sec('Режимы на концах линка не совпадают',r.mode,'var(--fault)')}
+    ${sec('Разные VLAN на концах линка',r.vlan,'var(--reserved)')}
+    ${sec('Аварийные порты',r.fault,'var(--fault)')}
+    ${sec('Зомби-резервы (дольше 30 дней)',r.stale,'var(--reserved)')}
+    <div class="btnrow" style="margin-top:14px"><button class="btn ghost" id="au_close">Закрыть</button></div>`);
+  document.getElementById('au_close').onclick=closeSheet;
+  document.querySelectorAll('.audit-i').forEach(el=>el.onclick=()=>{
+    const d=devById(el.dataset.d);if(!d)return;
+    closeSheet();openDevice(d.id);setTimeout(()=>openPort(d,+el.dataset.n),240);});}
+
+/* ---------- глобальный поиск ---------- */
+function globalSearch(q){
+  q=q.toLowerCase();const devs=[],ports=[];
+  DB.devices.forEach(d=>{
+    if([d.name,d.model,d.location,d.cabinet,d.site].some(v=>v&&String(v).toLowerCase().includes(q)))devs.push(d);
+    for(let n=1;n<=d.portCount;n++){const p=d.ports[n];
+      if(p&&matchPort(p,q)){ports.push({d,n,p});if(ports.length>=30)return;}}});
+  return{devs:devs.slice(0,10),ports};}
+function globalSearchHTML(q){
+  const{devs,ports}=globalSearch(q);
+  if(!devs.length&&!ports.length)return `<div class="hint" style="margin:8px 2px">Ничего не найдено</div>`;
+  let out='';
+  out+=devs.map(d=>`<div class="impitem gsr-i" data-d="${d.id}">
+    <span class="id" style="background:var(--brand)"></span>
+    <div>${esc(d.name)}<div style="font-size:11px;color:var(--muted)">${esc(d.model||'')}${d.location?' · '+esc(d.location):''}</div></div></div>`).join('');
+  out+=ports.map(x=>{const m=[x.p.device,x.p.cableId&&'каб '+x.p.cableId,x.p.vlan&&'VLAN '+x.p.vlan,x.p.location].filter(Boolean).join(' · ');
+    return `<div class="impitem gsr-i" data-d="${x.d.id}" data-n="${x.n}">
+      <span class="id" style="background:${STAT[x.p.status||'free']}"></span>
+      <div style="min-width:0"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m||'—')}</div>
+        <div style="font-size:11px;color:var(--muted)">${esc(x.d.name)}</div></div>
+      <span class="im-sub gs-port">·${x.n}</span></div>`;}).join('');
+  return out;}
+
+/* ---------- сверка с реальностью (агент / ручной JSON) ---------- */
+function parseReality(txt){
+  /* принимает: {"ports":{"1":"up",...}} | {"1":"up"} | {"ports":{"1":{"oper":"up","desc":".."}}} */
+  const data=JSON.parse(txt);const src=data.ports||data;const map={};
+  Object.keys(src).forEach(k=>{const n=parseInt(k);if(!n)return;
+    let v=src[k];if(v&&typeof v==='object')v=v.oper||v.status;
+    v=String(v||'').toLowerCase();
+    if(v==='up'||v==='1'||v==='connected')map[n]='up';
+    else if(v==='down'||v==='2'||v==='notconnect'||v==='lowerlayerdown')map[n]='down';});
+  return map;}
+function realityDiff(d,map){
+  const ghosts=[],dead=[];
+  Object.keys(map).forEach(k=>{const n=+k;if(n<1||n>d.portCount)return;
+    const p=d.ports[n],doc=(p&&p.status)||'free';
+    if(map[n]==='up'&&(doc==='free'||doc==='reserved'))
+      ghosts.push({n,doc,text:`Порт ${n}: линк поднят, но задокументирован как «${STATLBL[doc]}»`});
+    if(map[n]==='down'&&doc==='up')
+      dead.push({n,doc,text:`Порт ${n}: задокументирован активным, но линка нет`+(p.device?' · '+p.device:'')});});
+  return{ghosts,dead};}
+function openRealityCheck(d){
+  openSheet(`<h2>${I.bolt} Сверка с реальностью</h2>
+    <div class="hint">Вставь JSON от агента (portmap-agent.py) или свой:<br>
+      <span class="mono" style="font-size:11px">{"ports":{"1":"up","2":"down"}}</span></div>
+    <div class="field"><textarea id="rc_in" placeholder='{"ports":{"1":"up","2":"down","3":"up"}}'
+      style="min-height:120px;font-family:'IBM Plex Mono',monospace;font-size:12px"></textarea></div>
+    <div class="btnrow"><button class="btn ghost" id="rc_cancel">Отмена</button>
+      <button class="btn prim" id="rc_go">Сверить</button></div>
+    <div id="rc_out" style="margin-top:14px"></div>`);
+  document.getElementById('rc_cancel').onclick=closeSheet;
+  document.getElementById('rc_go').onclick=()=>{
+    let map;try{map=parseReality(val('rc_in'));}catch(e){toast('Не получилось разобрать JSON');return;}
+    const n=Object.keys(map).length;if(!n){toast('В JSON нет портов');return;}
+    const{ghosts,dead}=realityDiff(d,map),out=document.getElementById('rc_out');
+    if(!ghosts.length&&!dead.length){
+      out.innerHTML=`<div class="hint" style="color:var(--up);font-weight:600">✓ Расхождений нет — документация совпадает с реальностью (проверено портов: ${n})</div>`;return;}
+    out.innerHTML=
+      (ghosts.length?`<div class="hint" style="font-weight:600;color:var(--fault)">Недокументированные линки · ${ghosts.length}</div>`+
+        ghosts.map(g=>`<div class="impitem"><span class="id"></span><div>${esc(g.text)}</div></div>`).join(''):'')+
+      (dead.length?`<div class="hint" style="font-weight:600;color:var(--reserved);margin-top:10px">Мёртвые «активные» порты · ${dead.length}</div>`+
+        dead.map(g=>`<div class="impitem"><span class="id" style="background:var(--reserved)"></span><div>${esc(g.text)}</div></div>`).join(''):'')+
+      `<div class="btnrow" style="margin-top:12px">
+        <button class="btn prim" id="rc_apply" style="flex:1">Применить: линки → активен, мёртвые → авария</button></div>`;
+    document.getElementById('rc_apply').onclick=()=>{
+      ghosts.forEach(g=>{const p=d.ports[g.n]||(d.ports[g.n]={});
+        p.status='up';p.ts=Date.now();portHist(p,'Сверка: обнаружен линк — статус → Активен');});
+      dead.forEach(g=>{const p=d.ports[g.n];if(!p)return;
+        p.status='fault';p.ts=Date.now();portHist(p,'Сверка: линка нет — статус → Авария');});
+      logEvent(`Сверка «${d.name}»: применено ${ghosts.length+dead.length} исправлений`);
+      save();closeSheet();renderDevice();toast(`Применено: ${ghosts.length+dead.length}`);};};}
+
+/* ---------- вид стойки ---------- */
+let rackPlace=null; /* {devId} — устройство в режиме размещения */
+function showRack(){
+  if(!DB.devices.length){toast('Нет объектов');return;}
+  rackPlace=null;renderRack();}
+function renderRack(){
+  const groups={};
+  DB.devices.forEach(d=>{const k=d.cabinet&&d.cabinet.trim()||'Без стойки';(groups[k]=groups[k]||[]).push(d);});
+  const html=Object.keys(groups).sort((a,b)=>a.localeCompare(b,'ru')).map(cab=>{
+    const devs=groups[cab];
+    const placed={},unplaced=[];
+    devs.forEach(d=>{if(d.unit>=1)placed[d.unit]=d;else unplaced.push(d);});
+    const maxU=Math.max(12,...devs.map(d=>d.unit||0));
+    let rows='';
+    for(let u=maxU;u>=1;u--){const d=placed[u];
+      rows+=`<div class="racku${rackPlace?' place':''}" data-u="${u}" data-cab="${esc(cab)}"><div class="un">${u}</div>
+        <div class="uslot">${d?
+          `<div class="rackdev" data-d="${d.id}">${d.type==='panel'?I.label:I.logo}
+             <span class="rd-nm">${esc(d.name)}</span>
+             <span class="rd-x" data-x="${d.id}" title="Убрать из юнита">×</span></div>`:
+          `<span class="rackfree">${rackPlace?'тап — разместить сюда':''}</span>`}</div></div>`;}
+    const chips=unplaced.length?`<div style="padding:9px 12px;border-bottom:1px solid var(--line)">
+      <div class="hint" style="margin-bottom:7px;font-size:12px">Не размещены — тапни и укажи юнит:</div>
+      <div style="display:flex;flex-wrap:wrap;gap:7px">${unplaced.map(d=>
+        `<button class="chip rk-chip${rackPlace===d.id?' sel':''}" data-d="${d.id}" style="${rackPlace===d.id?'border-color:var(--brand);color:var(--brand)':''}">${esc(d.name)}</button>`).join('')}</div></div>`:'';
+    return `<div class="rackbox"><div class="rackhead">${I.mapg} ${esc(cab)}
+      <span style="margin-left:auto;color:var(--muted);font-size:11px;font-weight:400">${devs.length} об.</span></div>${chips}${rows}</div>`;}).join('');
+  openSheet(`<h2>${I.mapg} Стойки</h2>
+    <div class="hint">Раскладка по юнитам. Шкаф берётся из поля «Шкаф / стойка» объекта.</div>
+    ${html}<div class="btnrow" style="margin-top:12px"><button class="btn ghost" id="rk_close">Закрыть</button></div>`);
+  document.getElementById('rk_close').onclick=()=>{rackPlace=null;closeSheet();};
+  document.querySelectorAll('.rk-chip').forEach(el=>el.onclick=()=>{
+    rackPlace=rackPlace===el.dataset.d?null:el.dataset.d;renderRack();});
+  document.querySelectorAll('.rackdev').forEach(el=>el.onclick=e=>{
+    if(e.target.dataset.x){const d=devById(e.target.dataset.x);if(d){delete d.unit;save();renderRack();}return;}
+    const d=devById(el.dataset.d);if(d){rackPlace=null;closeSheet();openDevice(d.id);}});
+  document.querySelectorAll('.racku').forEach(el=>el.querySelector('.uslot').onclick=e=>{
+    if(!rackPlace)return;
+    if(e.target.closest('.rackdev'))return; /* занято */
+    const d=devById(rackPlace);if(!d)return;
+    d.unit=+el.dataset.u;d.cabinet=d.cabinet&&d.cabinet.trim()?d.cabinet:(el.dataset.cab==='Без стойки'?'':el.dataset.cab);
+    logEvent(`${d.name} размещён: ${d.cabinet||'стойка'} · U${d.unit}`);
+    save();rackPlace=null;renderRack();});}
+
 /* ============ start ============ */
 applyTheme();
 boot();
-if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}
+/* если localStorage пуст/битый — поднимаем данные из IndexedDB и перерисовываем */
+loadIDB().then(changed=>{if(changed){applyTheme();boot();}});
+if('serviceWorker' in navigator){window.addEventListener('load',()=>{
+  navigator.serviceWorker.register('sw.js').then(reg=>{
+    reg.addEventListener('updatefound',()=>{const w=reg.installing;
+      if(w)w.addEventListener('statechange',()=>{
+        if(w.state==='installed'&&navigator.serviceWorker.controller)
+          toast('Доступно обновление — перезапусти приложение');});});
+  }).catch(()=>{});});}
 </script>
 </body>
 </html>

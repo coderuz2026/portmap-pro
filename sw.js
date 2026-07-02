@@ -1,5 +1,9 @@
-/* PortMap Pro — service worker */
-const CACHE = 'portmap-v1';
+/* PortMap Pro — service worker (v2)
+   Стратегии:
+   - навигация/HTML  -> network-first (обновления подхватываются сразу, офлайн — из кэша)
+   - свои ассеты      -> stale-while-revalidate (мгновенно из кэша, тихо обновляем)
+   - CDN/шрифты       -> cache-first (иммутабельные, экономим трафик)              */
+const CACHE = 'portmap-v2';
 const SHELL = [
   './',
   './index.html',
@@ -21,18 +25,48 @@ self.addEventListener('activate', e => {
   );
 });
 
+self.addEventListener('message', e => {
+  if (e.data === 'SKIP_WAITING') self.skipWaiting();
+});
+
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
-  // cache-first; fall back to network and cache the result (covers fonts + QR CDN at runtime)
-  e.respondWith(
-    caches.match(req).then(hit => {
-      if (hit) return hit;
-      return fetch(req).then(res => {
+  const url = new URL(req.url);
+
+  // 1) HTML / навигация: network-first
+  if (req.mode === 'navigate' || url.pathname.endsWith('/index.html')) {
+    e.respondWith(
+      fetch(req).then(res => {
+        const copy = res.clone();
+        caches.open(CACHE).then(c => c.put('./index.html', copy)).catch(() => {});
+        return res;
+      }).catch(() => caches.match('./index.html'))
+    );
+    return;
+  }
+
+  // 2) Кросс-доменные (CDN, шрифты): cache-first
+  if (url.origin !== location.origin) {
+    e.respondWith(
+      caches.match(req).then(hit => hit || fetch(req).then(res => {
         const copy = res.clone();
         caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
         return res;
-      }).catch(() => caches.match('./index.html'));
+      }))
+    );
+    return;
+  }
+
+  // 3) Свои ассеты: stale-while-revalidate
+  e.respondWith(
+    caches.match(req).then(hit => {
+      const net = fetch(req).then(res => {
+        const copy = res.clone();
+        caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
+        return res;
+      }).catch(() => hit);
+      return hit || net;
     })
   );
 });
