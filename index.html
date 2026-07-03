@@ -297,6 +297,13 @@ input,textarea,select{font-family:inherit}
 #printArea .lbl .lq img,#printArea .lbl .lq canvas{display:block}
 #printArea .lbl .lt{font-size:9px;line-height:1.25}
 #printArea .lbl .lt b{font-size:10px}
+/* ===== Список портов под фейсплейтом ===== */
+.plist-h{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin:16px 2px 8px;display:flex;align-items:center;gap:8px}
+.plitem{display:flex;gap:12px;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--free);
+  border-radius:12px;padding:11px 12px;margin-bottom:8px;cursor:pointer;align-items:flex-start}
+.plitem:active{transform:scale(.99)}
+.plitem .pn2{min-width:26px;text-align:center;font-weight:800;font-size:15px;color:var(--muted);padding-top:1px}
+.plbadge{display:inline-block;border:1px dashed var(--line);border-radius:999px;padding:2px 9px;font-size:10.5px;margin-right:6px;color:var(--muted);font-family:'IBM Plex Mono',monospace}
 /* ===== Гость и киоск ===== */
 body.guest .g-hide{display:none!important}
 body.guest #addBtn{display:none!important}
@@ -406,6 +413,54 @@ if(_mq&&_mq.addEventListener)_mq.addEventListener('change',()=>{if(!DB.theme)app
 const LANG={
  ru:{objects:'Объектов',
   /* --- PRO+ --- */
+  port_list:'Порты с данными',
+  df_copper:'Медных портов (RJ45)',df_custom_n:'или своё число',
+  df_sfp:'SFP-порты (оптика, аплинк)',df_none:'нет',create_btn:'Создать',
+  au_found:'Найдено проблем',au_tap:'тап по строке — к порту',
+  au_clean:'Проблем не найдено — документация чистая ✓',
+  au_dup:'Дубликаты кабель-ID',au_mode:'Режимы на концах линка не совпадают',
+  au_vlan:'Разные VLAN на концах линка',au_fault:'Аварийные порты',
+  au_stale:'Зомби-резервы (дольше 30 дней)',
+  rk_hint:'Раскладка по юнитам. Шкаф берётся из поля «Шкаф / стойка» объекта.',
+  rk_unplaced:'Не размещены — тапни и укажи юнит:',
+  bk_keep:'пусто — не менять',apply_btn:'Применить',
+  df_new:'Новый объект',df_edit_hint:'Обнови данные объекта',
+  df_new_hint:'Свитч или патч-панель — что размечаешь',
+  df_tpl:'Шаблон (быстрый старт)',df_type:'Тип',df_switch:'Свитч',
+  df_name:'Название',df_model:'Модель',df_site:'Площадка / здание',df_site_ph:'Главный офис',
+  df_cab:'Шкаф / стойка',df_cab_ph:'Стойка R1',df_loc:'Локация',df_loc_ph:'Серверная, этаж 2…',
+  df_mip:'IP управления (веб-интерфейс)',
+  gsearch_ph:'Поиск по всем объектам: устройство, кабель, VLAN…',
+  no_objects:'Нет объектов',no_rack:'Без стойки',rk_unplace:'Убрать из юнита',
+  empty_csv:'Пустой CSV',file_err:'Не удалось прочитать файл',
+  st_up:'Активен',st_reserved:'Резерв',st_fault:'Авария',st_free:'Свободен',
+  c_up:'Активны',c_res:'Резерв',c_fault:'Авария',c_free:'Свободно',
+  search_dev_ph:'Поиск: устройство, кабель, VLAN…',
+  sfp_port:'SFP-порт',status:'Статус',port_mode:'Режим порта',uplink_word:'аплинк',
+  dev_ph:'ПК-бухгалтерия, AP-2, NVR…',vlan_allowed:'Разрешённые VLAN',cable_id:'Кабель ID',
+  loc_socket:'Локация / розетка',loc_ph:'Каб. 204, патч-панель P2:14',
+  note_lbl:'Заметка',note_ph2:'Что важно помнить…',link_lbl:'Связь / кабель-трасса',
+  on_photo:'На фото',impact_btn:'Что отвалится',clear_port:'Очистить порт',
+  m_edit:'Изменить объект',m_cli:'Импорт из вывода команды',m_bulk:'Массовое редактирование',
+  m_photo:'Фото и разметка портов',m_impact:'Impact-анализ (весь объект)',
+  m_dqr:'QR объекта (на шкаф)',m_pdf:'PDF-отчёт по портам',m_labels:'Лист QR-наклеек на печать',
+  m_expobj:'Экспорт этого объекта (JSON)',m_delobj:'Удалить объект',
+  scan:'Сканировать',scan_hint:'QR камерой, из фото или NFC-меткой',from_photo:'Из фото',
+  no_link:'У порта нет связи',link_broken:'Связь повреждена',trace_t:'Трасса кабеля',
+  trace_hint:'Сквозная связь порта',cable_word:'кабель',
+  cli_hint:'Вставь вывод свитча — порты заполнятся автоматически',
+  cli_fmt:'Понимает Cisco-подобный формат (Cisco / BDCOM и похожие).',
+  cli_go:'Распознать и применить',
+  bulk_hint:'Задать параметры сразу диапазону портов',from_port:'От порта',to_port:'До порта',
+  dqr_t:'QR объекта',dqr_hint:'Наклей на дверцу шкафа — скан открывает весь объект',
+  port_low:'порт',panel_low:'панель',unlink:'Отвязать',remove_btn:'Убрать',link_with:'Связать с портом',
+  ai_t:'AI-диагностика',ai_hint:'Анализирует только твою задокументированную сеть',
+  ai_faults:'аварийных портов',ai_empty:'Сначала добавь объекты и порты — AI отвечает по данным сети.',
+  ports_word:'портов',panel:'Патч-панель',no_site:'Без площадки',
+  orgs:'Организации',org_default:'Моя сеть',org_hint:'Каждая организация — отдельная сеть со своими свитчами и журналом. Тап — переключиться.',
+  org_add:'Добавить',org_add_ask:'Название новой организации:',org_created:'Создана',
+  org_now:'Текущая организация',org_current:'текущая',
+  org_del_confirm:'Удалить организацию',org_rename:'Новое название:',
   guest:'Гость',guest_view:'Гостевой просмотр',guest_on:'Гостевой режим: только просмотр',
   guest_ro:'Режим просмотра — изменения выключены',
   guest_access:'Гостевой доступ (PIN)',
@@ -475,23 +530,56 @@ const LANG={
   ob_2:'Связывай порты в трассы, печатай QR-наклейки, сканируй их в поле.',ob_3:'Смотри топологию и AI-диагностику по своей сети.',
   ob_demo:'Загрузить демо-сеть',ob_start:'Начать',backup_nudge:'Данные хранятся на устройстве. Сделай резервную копию.',
   backup_do:'Сделать бэкап',later:'Позже',log_empty:'Пока нет записей.'},
- uz:{objects:'Obyektlar',portsUsed:'Band portlar',portsTotal:'Jami portlar',
-  emptyTitle:'Hozircha bo‘sh',emptyText:'Birinchi svitchni qo‘shing va portlar, kabellar, patch-panellarni belgilang.',
-  addSwitch:'Svitch',menu:'Menyu',loggedAs:'Kirdingiz:',ai_diag:'Tarmoq AI-diagnostikasi',
-  topology:'Tarmoq sxemasi (topologiya)',theme:'Mavzu',theme_dark:'qorong‘i',theme_light:'yorug‘',
-  export_json:'Barcha ma’lumotlar eksporti (JSON)',export_csv:'CSV eksport (Excel)',import_file:'Fayldan import (JSON / CSV)',
-  pro_open:'Pro ochish',pro_active:'Pro faol ✓',demo:'Demo-tarmoqni yuklash',changelog:'O‘zgarishlar jurnali',
-  language:'Til',logout:'Chiqish',create_account:'Hisob yaratish',
-  app_tag_reg:'Portlar va kabellar hujjatlari.\nBoshlash uchun hisob yarating.',name_lbl:'Ismingiz',
-  name_ph:'Ism yoki login',pass:'Parol',pass_min:'Kamida 4 belgi',repeat_pass:'Parolni takrorlang',repeat_ph:'Yana bir bor',
-  acc_local_note:'Hisob faqat shu qurilmada saqlanadi. Parol serverga yuborilmaydi.',
-  welcome_back:'Xush kelibsiz',your_pass:'Parolingiz',login:'Kirish',forgot:'Parolni unutdim / hisobni tiklash',
-  ob_title:'PortMap Pro’ga xush kelibsiz',ob_1:'Svitch yoki patch-panel qo‘shing va portlarni belgilang: holat, VLAN, kabel, qurilma.',
-  ob_2:'Portlarni trassalarga bog‘lang, QR-yorliqlar chop eting va dalada skanerlang.',ob_3:'Tarmoq topologiyasi va AI-diagnostikani ko‘ring.',
-  ob_demo:'Demo-tarmoqni yuklash',ob_start:'Boshlash',backup_nudge:'Ma’lumotlar qurilmada. Zaxira nusxa oling.',
-  backup_do:'Zaxira olish',later:'Keyinroq',log_empty:'Hozircha yozuvlar yo‘q.'},
  en:{objects:'Objects',
   /* --- PRO+ --- */
+  port_list:'Documented ports',
+  df_copper:'Copper ports (RJ45)',df_custom_n:'or a custom number',
+  df_sfp:'SFP ports (fiber, uplink)',df_none:'none',create_btn:'Create',
+  au_found:'Issues found',au_tap:'tap a row to open the port',
+  au_clean:'No issues found — the documentation is clean ✓',
+  au_dup:'Duplicate cable IDs',au_mode:'Link ends have different modes',
+  au_vlan:'Different VLANs on link ends',au_fault:'Faulty ports',
+  au_stale:'Zombie reservations (over 30 days)',
+  rk_hint:'Unit layout. The cabinet comes from the object\'s "Cabinet / rack" field.',
+  rk_unplaced:'Not placed — tap and pick a unit:',
+  bk_keep:'empty — keep as is',apply_btn:'Apply',
+  df_new:'New object',df_edit_hint:'Update object details',
+  df_new_hint:'A switch or a patch panel — whatever you are mapping',
+  df_tpl:'Template (quick start)',df_type:'Type',df_switch:'Switch',
+  df_name:'Name',df_model:'Model',df_site:'Site / building',df_site_ph:'Head office',
+  df_cab:'Cabinet / rack',df_cab_ph:'Rack R1',df_loc:'Location',df_loc_ph:'Server room, floor 2…',
+  df_mip:'Management IP (web interface)',
+  gsearch_ph:'Search all objects: device, cable, VLAN…',
+  no_objects:'No objects',no_rack:'No rack',rk_unplace:'Remove from unit',
+  empty_csv:'Empty CSV',file_err:'Could not read the file',
+  st_up:'Active',st_reserved:'Reserved',st_fault:'Fault',st_free:'Free',
+  c_up:'Active',c_res:'Reserved',c_fault:'Fault',c_free:'Free',
+  search_dev_ph:'Search: device, cable, VLAN…',
+  sfp_port:'SFP port',status:'Status',port_mode:'Port mode',uplink_word:'uplink',
+  dev_ph:'Accounting-PC, AP-2, NVR…',vlan_allowed:'Allowed VLANs',cable_id:'Cable ID',
+  loc_socket:'Location / socket',loc_ph:'Room 204, patch panel P2:14',
+  note_lbl:'Note',note_ph2:'Anything worth remembering…',link_lbl:'Link / cable trace',
+  on_photo:'On photo',impact_btn:'Impact check',clear_port:'Clear port',
+  m_edit:'Edit object',m_cli:'Import from CLI output',m_bulk:'Bulk edit',
+  m_photo:'Photo & port mapping',m_impact:'Impact analysis (whole object)',
+  m_dqr:'Object QR (for the cabinet)',m_pdf:'PDF port report',m_labels:'Printable QR label sheet',
+  m_expobj:'Export this object (JSON)',m_delobj:'Delete object',
+  scan:'Scan',scan_hint:'QR via camera, from a photo, or NFC tag',from_photo:'From photo',
+  no_link:'This port has no link',link_broken:'Link is broken',trace_t:'Cable trace',
+  trace_hint:'End-to-end port connection',cable_word:'cable',
+  cli_hint:'Paste switch output — ports will be filled automatically',
+  cli_fmt:'Understands Cisco-like output (Cisco / BDCOM and similar).',
+  cli_go:'Parse and apply',
+  bulk_hint:'Apply settings to a range of ports at once',from_port:'From port',to_port:'To port',
+  dqr_t:'Object QR',dqr_hint:'Stick it on the cabinet door — scanning opens the whole object',
+  port_low:'port',panel_low:'panel',unlink:'Unlink',remove_btn:'Remove',link_with:'Link with a port',
+  ai_t:'AI diagnostics',ai_hint:'Analyzes only your documented network',
+  ai_faults:'faulty ports',ai_empty:'Add objects and ports first — AI works with your network data.',
+  ports_word:'ports',panel:'Patch panel',no_site:'No site',
+  orgs:'Organizations',org_default:'My network',org_hint:'Each organization is a separate network with its own switches and journal. Tap to switch.',
+  org_add:'Add',org_add_ask:'New organization name:',org_created:'Created',
+  org_now:'Current organization',org_current:'current',
+  org_del_confirm:'Delete organization',org_rename:'New name:',
   guest:'Guest',guest_view:'Guest view',guest_on:'Guest mode: view only',
   guest_ro:'View-only mode — editing is disabled',
   guest_access:'Guest access (PIN)',
@@ -597,8 +685,8 @@ function backupStale(){if(!DB.devices.length)return false;const now=Date.now();
   if((DB.chg||0)>50&&(!DB.lastBackup||now-DB.lastBackup>864e5))return true; /* много изменений — напоминаем настойчиво */
   if(DB.backupSnooze&&now-DB.backupSnooze<7*864e5)return false;
   return !DB.lastBackup||now-DB.lastBackup>14*864e5;}
-function langCycle(){DB.lang=({ru:'uz',uz:'en',en:'ru'})[DB.lang||'ru'];save();closeSheet();renderHome();
-  toast('Язык: '+({ru:'Русский',uz:'O‘zbek',en:'English'})[DB.lang]);}
+function langCycle(){DB.lang=(DB.lang==='en')?'ru':'en';save();closeSheet();boot();
+  toast(({ru:'Язык: Русский',en:'Language: English'})[DB.lang]);}
 load();
 
 /* Сессия переживает перезагрузку страницы (pull-to-refresh, возврат в TWA),
@@ -640,7 +728,8 @@ let _fb=null;
 const AI = { model:'claude-sonnet-4-6', apiKey:'', proxyUrl:'' };
 const uid=()=>Math.random().toString(36).slice(2,9);
 const STAT={up:'var(--up)',reserved:'var(--reserved)',fault:'var(--fault)',free:'var(--free)'};
-const STATLBL={up:'Активен',reserved:'Резерв',fault:'Авария',free:'Свободен'};
+const STATLBL={get up(){return t('st_up')},get reserved(){return t('st_reserved')},
+  get fault(){return t('st_fault')},get free(){return t('st_free')}};
 let view={name:'home',deviceId:null,filter:''};
 
 async function sha256(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));
@@ -691,11 +780,11 @@ function boot(){
   const root=document.getElementById('root'),app=document.getElementById('app');
   if(!DB.account){app.classList.add('hidden');root.classList.remove('hidden');renderRegister();}
   else if(!authed){app.classList.add('hidden');root.classList.remove('hidden');renderLogin();}
-  else{root.classList.add('hidden');app.classList.remove('hidden');renderHome();
+  else{root.classList.add('hidden');root.innerHTML='';app.classList.remove('hidden');renderHome();
     if(!DB.onboarded)setTimeout(showOnboarding,350);}
 }
 function showRoot(){document.getElementById('app').classList.add('hidden');document.getElementById('root').classList.remove('hidden');}
-function showApp(){document.getElementById('root').classList.add('hidden');document.getElementById('app').classList.remove('hidden');}
+function showApp(){const r=document.getElementById('root');r.classList.add('hidden');r.innerHTML='';document.getElementById('app').classList.remove('hidden');}
 function renderRegister(){
   document.getElementById('root').innerHTML=`
    <div class="auth">
@@ -708,7 +797,7 @@ function renderRegister(){
      <div class="err" id="r_err"></div>
      <button class="full" id="r_go">${I.check} ${t('create_account')}</button>
      <p style="text-align:center;font-size:12px;color:var(--muted2);margin-top:16px;line-height:1.5">${t('acc_local_note')}</p>
-     <div class="alt" style="margin-top:14px"><a id="r_lang">🌐 ${t('language')}: ${({ru:'Русский',uz:'O‘zbek',en:'English'})[DB.lang||'ru']}</a></div>
+     <div class="alt" style="margin-top:14px"><a id="r_lang">🌐 ${t('language')}: ${(DB.lang==='en')?'English':'Русский'}</a></div>
    </div>`;
   document.getElementById('r_go').onclick=doRegister;
   document.getElementById('r_pass2').addEventListener('keydown',e=>{if(e.key==='Enter')doRegister();});
@@ -857,6 +946,7 @@ function renderHome(){
         <span style="flex:1">${t('backup_nudge')}</span>
         <button id="bkDo" style="background:var(--brand);color:#1a1205;border:none;border-radius:8px;padding:7px 11px;font-weight:700;font-size:12px">${t('backup_do')}</button>
         ${(DB.chg||0)>50?'':`<button id="bkLater" style="background:transparent;border:none;color:var(--muted);font-size:12px">${t('later')}</button>`}</div>`:''}
+      ${Object.keys(DB.orgStore||{}).length?`<div style="font-size:12px;color:var(--muted);margin:0 2px 8px">🏢 ${esc(orgName())}</div>`:''}
       ${allFaults().length?`<button class="panicbtn" id="panicBtn">🚨 ${t('panic')}<span class="cnt">${allFaults().length}</span></button>`:''}
       <div class="statline">
         <div class="stat"><div class="n">${DB.devices.length}</div><div class="l">${t('objects')}</div></div>
@@ -864,7 +954,7 @@ function renderHome(){
         <div class="stat"><div class="n">${totalPorts}</div><div class="l">${t('portsTotal')}</div></div>
       </div>
       ${sparkHTML()}
-      ${DB.devices.length>1?`<div class="search">${I.search}<input id="gsearch" placeholder="Поиск по всем объектам: устройство, кабель, VLAN…"></div><div id="gsr"></div>`:''}
+      ${DB.devices.length>1?`<div class="search">${I.search}<input id="gsearch" placeholder="${t('gsearch_ph')}"></div><div id="gsr"></div>`:''}
       ${DB.devices.length?renderDeviceList():emptyHome()}
     </div>
     <button class="fab" id="addBtn">${I.plus} ${t('addSwitch')}</button>`;
@@ -887,7 +977,7 @@ function renderHome(){
 function renderDeviceList(){
   const hasSite=DB.devices.some(d=>d.site);
   if(!hasSite)return DB.devices.map(devCard).join('');
-  const groups={};DB.devices.forEach(d=>{const k=d.site||'Без площадки';(groups[k]=groups[k]||[]).push(d);});
+  const groups={};DB.devices.forEach(d=>{const k=d.site||t('no_site');(groups[k]=groups[k]||[]).push(d);});
   return Object.keys(groups).map(site=>`
     <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin:14px 2px 8px">${esc(site)}</div>
     ${groups[site].map(devCard).join('')}`).join('');
@@ -896,12 +986,12 @@ function emptyHome(){return `<div class="empty"><div class="em">${I.logo}</div>
   <h3>${t('emptyTitle')}</h3><p>${t('emptyText')}</p></div>`;}
 function devCard(d){const c=counts(d);
   const seg=(n,col)=>n?`<i style="flex:${n};background:${col}"></i>`:'';
-  const typeTag=d.type==='panel'?'<span style="color:var(--reserved);font-weight:600">Патч-панель</span> · ':'';
+  const typeTag=d.type==='panel'?`<span style="color:var(--reserved);font-weight:600">${t('panel')}</span> · `:'';
   const loc=[d.cabinet,d.location].filter(Boolean).join(' · ');
   return `<div class="dev" data-id="${d.id}"><div class="top"><div>
     <div class="nm">${esc(d.name)}</div>
     <div class="sub">${typeTag}${esc(d.model||'—')}${loc?' · '+esc(loc):''}</div></div>
-    <div class="cnt"><b>${c.used}</b>/${d.portCount}<br>портов</div></div>
+    <div class="cnt"><b>${c.used}</b>/${d.portCount}<br>${t('ports_word')}</div></div>
     <div class="usebar">${seg(c.up,'var(--up)')}${seg(c.reserved,'var(--reserved)')}${seg(c.fault,'var(--fault)')}${seg(c.free,'var(--free)')}</div></div>`;}
 
 /* ============ DEVICE ============ */
@@ -917,21 +1007,53 @@ function renderDevice(){
       <div class="spacer"></div><button class="iconbtn" id="devMenu" aria-label="Меню объекта">${I.dots}</button></div>
     <div class="devhead"><div class="meta mono">${esc(d.model||'—')}${d.location?' · '+esc(d.location):''}${d.mgmtIp?` · <a href="http://${esc(d.mgmtIp)}" target="_blank" rel="noopener" style="color:var(--brand);text-decoration:none">${esc(d.mgmtIp)} ↗</a>`:''}</div></div>
     <div class="chips">
-      <div class="chip"><span class="dot" style="background:var(--up)"></span>Активны <b>${c.up}</b></div>
-      <div class="chip"><span class="dot" style="background:var(--reserved)"></span>Резерв <b>${c.reserved}</b></div>
-      <div class="chip"><span class="dot" style="background:var(--fault)"></span>Авария <b>${c.fault}</b></div>
-      <div class="chip"><span class="dot" style="background:var(--free)"></span>Свободно <b>${c.free}</b></div></div>
-    <div class="search">${I.search}<input id="filter" placeholder="Поиск: устройство, кабель, VLAN…" value="${esc(view.filter)}"></div>
+      <div class="chip"><span class="dot" style="background:var(--up)"></span>${t('c_up')} <b>${c.up}</b></div>
+      <div class="chip"><span class="dot" style="background:var(--reserved)"></span>${t('c_res')} <b>${c.reserved}</b></div>
+      <div class="chip"><span class="dot" style="background:var(--fault)"></span>${t('c_fault')} <b>${c.fault}</b></div>
+      <div class="chip"><span class="dot" style="background:var(--free)"></span>${t('c_free')} <b>${c.free}</b></div></div>
+    <div class="search">${I.search}<input id="filter" placeholder="${t('search_dev_ph')}" value="${esc(view.filter)}"></div>
     <div class="plate-wrap"><div class="plate" id="plate"></div></div>
     <div class="legend">
-      <span><i style="background:var(--up)"></i>Активен</span>
-      <span><i style="background:var(--reserved)"></i>Резерв</span>
-      <span><i style="background:var(--fault)"></i>Авария</span>
-      <span><i style="background:var(--free)"></i>Свободен</span></div>`;
+      <span><i style="background:var(--up)"></i>${STATLBL.up}</span>
+      <span><i style="background:var(--reserved)"></i>${STATLBL.reserved}</span>
+      <span><i style="background:var(--fault)"></i>${STATLBL.fault}</span>
+      <span><i style="background:var(--free)"></i>${STATLBL.free}</span></div>
+    <div id="plist-h" class="plist-h">${t('port_list')}</div>
+    <div id="plist"></div>`;
   document.getElementById('backBtn').onclick=goHome;
   document.getElementById('devMenu').onclick=()=>openDeviceMenu(d);
-  const f=document.getElementById('filter');f.oninput=()=>{view.filter=f.value;drawPlate(d);};
-  drawPlate(d);
+  const f=document.getElementById('filter');f.oninput=()=>{view.filter=f.value;drawPlate(d);drawPortList(d);};
+  drawPlate(d);drawPortList(d);
+}
+/* Список задокументированных портов под фейсплейтом (как в старом PortMap, но богаче) */
+function drawPortList(d){
+  const box=document.getElementById('plist');if(!box)return;
+  const q=(view.filter||'').trim();
+  const COL={up:'var(--up)',reserved:'var(--reserved)',fault:'var(--fault)',free:'var(--free)'};
+  const items=[];
+  for(let n=1;n<=d.portCount;n++){
+    const p=d.ports[n];if(!p)continue;
+    const has=p.device||p.ip||p.mac||p.vlan||p.cableId||p.note||p.location||p.link||(p.status&&p.status!=='free');
+    if(!has)continue;
+    if(q&&!matchPort(p,q)&&String(n)!==q)continue;
+    const st=p.status||'free';
+    const badges=[p.vlan&&('VLAN '+p.vlan),p.mode==='trunk'&&'TRUNK',p.cableId&&('#'+p.cableId)]
+      .filter(Boolean).map(b=>`<span class="plbadge">${esc(b)}</span>`).join('');
+    let link='';
+    if(p.link){const o=devById(p.link.deviceId);if(o)link=`→ ${esc(o.name)}:${p.link.port}`;}
+    items.push(`<div class="plitem" data-n="${n}" style="border-left-color:${COL[st]}">
+      <div class="pn2">${n}</div>
+      <div style="min-width:0;flex:1">
+        <div style="font-weight:600">${esc(p.device||'')||`<span style="color:${COL[st]}">${STATLBL[st]||st}</span>`}
+          ${link?` <span style="color:var(--muted);font-weight:400;font-size:12px">${link}</span>`:''}</div>
+        ${(p.ip||p.mac)?`<div class="mono" style="font-size:11.5px;color:var(--muted);margin-top:2px">${esc([p.ip,p.mac].filter(Boolean).join('  '))}</div>`:''}
+        ${(p.location||p.note)?`<div style="font-size:11px;color:var(--muted);margin-top:2px">${esc([p.location,p.note].filter(Boolean).join(' · '))}</div>`:''}
+        ${badges?`<div style="margin-top:6px">${badges}</div>`:''}
+      </div></div>`);}
+  const hd=document.getElementById('plist-h');
+  if(hd)hd.style.display=(items.length||q)?'':'none';
+  box.innerHTML=items.join('')||(q?`<div class="hint">${t('nothing')}</div>`:'');
+  box.querySelectorAll('.plitem').forEach(el=>el.onclick=()=>openPort(d,+el.dataset.n));
 }
 function matchPort(p,q){if(!q)return null;q=q.toLowerCase();if(!p)return false;
   return[p.device,p.vlan,p.cableId,p.location,p.note,p.ip,p.mac].some(v=>v&&String(v).toLowerCase().includes(q));}
@@ -976,33 +1098,33 @@ let editPort={d:null,n:null,status:'free',mode:'access'};
 function openPort(d,n){
   const p=d.ports[n]||{};editPort={d,n,status:p.status||'free',mode:p.mode||'access'};
   openSheet(`
-    <h2>${d.sfpFrom&&n>=d.sfpFrom?'SFP-порт '+(n-d.sfpFrom+1)+' (оптика)':'Порт '+n}</h2><div class="hint">${esc(d.name)}${d.model?' · '+esc(d.model):''}</div>
-    <div class="field"><label>Статус</label><div class="seg" id="seg">
+    <h2>${d.sfpFrom&&n>=d.sfpFrom?t('sfp_port')+' '+(n-d.sfpFrom+1):t('port')+' '+n}</h2><div class="hint">${esc(d.name)}${d.model?' · '+esc(d.model):''}</div>
+    <div class="field"><label>${t('status')}</label><div class="seg" id="seg">
       ${['free','up','reserved','fault'].map(v=>`<button data-v="${v}" class="${v===editPort.status?'sel':''}">
         <span class="d" style="background:${STAT[v]}"></span>${STATLBL[v]}</button>`).join('')}</div></div>
-    ${d.type!=='panel'?`<div class="field adv"><label>Режим порта</label><div class="seg" id="segmode">
+    ${d.type!=='panel'?`<div class="field adv"><label>${t('port_mode')}</label><div class="seg" id="segmode">
       <button data-m="access" class="${editPort.mode==='access'?'sel':''}">Access</button>
-      <button data-m="trunk" class="${editPort.mode==='trunk'?'sel':''}" style="${editPort.mode==='trunk'?'border-color:var(--reserved)':''}">Trunk (аплинк)</button></div></div>`:''}
-    <div class="field"><label>${t('p_device')}</label><input id="f_device" placeholder="ПК-бухгалтерия, AP-2, NVR…" value="${esc(p.device||'')}"></div>
+      <button data-m="trunk" class="${editPort.mode==='trunk'?'sel':''}" style="${editPort.mode==='trunk'?'border-color:var(--reserved)':''}">Trunk (${t('uplink_word')})</button></div></div>`:''}
+    <div class="field"><label>${t('p_device')}</label><input id="f_device" placeholder="${t('dev_ph')}" value="${esc(p.device||'')}"></div>
     <div class="row2 adv">
       <div class="field"><label>IP</label><div style="display:flex;gap:6px">
         <input id="f_ip" class="mono" inputmode="decimal" placeholder="192.168.1.50" value="${esc(p.ip||'')}" style="flex:1">
         <button class="btn ghost" id="pingBtn" style="padding:10px 12px" title="ping">📡</button></div></div>
       <div class="field"><label>MAC</label><input id="f_mac" class="mono" placeholder="a4bb.6d12.34ff" value="${esc(p.mac||'')}"></div></div>
     <div class="row2 adv">
-      <div class="field"><label id="vlanLbl">${editPort.mode==='trunk'?'Разрешённые VLAN':'VLAN'}</label><input id="f_vlan" class="mono" placeholder="${editPort.mode==='trunk'?'10,20,30 или all':'10'}" value="${esc(p.vlan||'')}"></div>
-      <div class="field"><label>Кабель ID</label><input id="f_cable" class="mono" placeholder="A-014" value="${esc(p.cableId||'')}"></div></div>
-    <div class="field adv"><label>Локация / розетка</label><input id="f_loc" placeholder="Каб. 204, патч-панель P2:14" value="${esc(p.location||'')}"></div>
-    <div class="field adv"><label>Заметка</label><textarea id="f_note" placeholder="Что важно помнить…">${esc(p.note||'')}</textarea></div>
-    <div class="field adv"><label>Связь / кабель-трасса</label><div id="linkArea"></div></div>
+      <div class="field"><label id="vlanLbl">${editPort.mode==='trunk'?t('vlan_allowed'):'VLAN'}</label><input id="f_vlan" class="mono" placeholder="${editPort.mode==='trunk'?'10,20,30 или all':'10'}" value="${esc(p.vlan||'')}"></div>
+      <div class="field"><label>${t('cable_id')}</label><input id="f_cable" class="mono" placeholder="A-014" value="${esc(p.cableId||'')}"></div></div>
+    <div class="field adv"><label>${t('loc_socket')}</label><input id="f_loc" placeholder="${t('loc_ph')}" value="${esc(p.location||'')}"></div>
+    <div class="field adv"><label>${t('note_lbl')}</label><textarea id="f_note" placeholder="${t('note_ph2')}">${esc(p.note||'')}</textarea></div>
+    <div class="field adv"><label>${t('link_lbl')}</label><div id="linkArea"></div></div>
     ${histHTML(p)}
     <div class="qrbox" id="qrbox"><div class="qrcard"><div id="qr"></div></div><p id="qrtext"></p></div>
     <div class="btnrow adv"><button class="btn ghost" id="qrBtn">${I.qr} QR</button>
       <button class="btn ghost" id="nfcBtn">${I.nfc} NFC</button></div>
-    <div class="btnrow" style="margin-top:10px"><button class="btn ghost" id="photoBtn">${I.photo} На фото</button>
-      <button class="btn ghost" id="impBtn">${I.bolt} Что отвалится</button></div>
-    <div class="btnrow" style="margin-top:10px"><button class="btn prim" id="savePort" style="flex:1">${I.check} Сохранить</button></div>
-    <div class="btnrow" style="margin-top:10px"><button class="btn ghost" style="color:var(--muted)" id="clearPort">Очистить порт</button></div>`);
+    <div class="btnrow" style="margin-top:10px"><button class="btn ghost" id="photoBtn">${I.photo} ${t('on_photo')}</button>
+      <button class="btn ghost" id="impBtn">${I.bolt} ${t('impact_btn')}</button></div>
+    <div class="btnrow" style="margin-top:10px"><button class="btn prim" id="savePort" style="flex:1">${I.check} ${t('save_btn')}</button></div>
+    <div class="btnrow" style="margin-top:10px"><button class="btn ghost" style="color:var(--muted)" id="clearPort">${t('clear_port')}</button></div>`);
   renderLinkArea(d,n);
   document.getElementById('nfcBtn').onclick=()=>writeNFC(d,n);
   document.getElementById('photoBtn').onclick=()=>{persistPortFields();openPhotoMapper(d,n);};
@@ -1060,13 +1182,13 @@ function loadScanLib(){return new Promise((res,rej)=>{
 let _scanner=null;
 function openScanner(){
   const noCam=!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia);
-  openSheet(`<h2>Сканировать</h2>
-    <div class="hint">QR камерой, из фото или NFC-меткой</div>
+  openSheet(`<h2>${t('scan')}</h2>
+    <div class="hint">${t('scan_hint')}</div>
     <div id="reader" style="width:100%;border-radius:14px;overflow:hidden;background:#000;min-height:220px"></div>
     <div class="err" id="scan_err" style="margin-top:10px"></div>
-    <div class="btnrow"><button class="btn ghost" id="scanFileBtn">${I.photo} Из фото</button>
+    <div class="btnrow"><button class="btn ghost" id="scanFileBtn">${I.photo} ${t('from_photo')}</button>
       <button class="btn ghost" id="nfcScanBtn">${I.nfc} NFC</button></div>
-    <div class="btnrow" style="margin-top:10px"><button class="btn ghost" id="scanClose">Закрыть</button></div>`);
+    <div class="btnrow" style="margin-top:10px"><button class="btn ghost" id="scanClose">${t('close')}</button></div>`);
   document.getElementById('scanClose').onclick=closeScanner;
   document.getElementById('nfcScanBtn').onclick=scanNFC;
   document.getElementById('scanFileBtn').onclick=scanFromFile;
@@ -1129,12 +1251,12 @@ function renderLinkArea(d,n){const area=document.getElementById('linkArea');if(!
   const lk=d.ports[n]&&d.ports[n].link;let html='';
   if(lk){const o=devById(lk.deviceId);
     if(o){html+=`<div class="linkcard"><span class="lc-i">${I.link}</span>
-      <span>${esc(o.name)} · порт ${lk.port}${o.type==='panel'?' (панель)':''}</span>
-      <button class="lc-x" id="lk_un">Отвязать</button></div>
-      <div class="btnrow" style="margin-top:8px"><button class="btn ghost" id="lk_trace">${I.trace} Трасса кабеля</button></div>`;}
-    else{html+=`<div class="linkcard"><span>Связь повреждена</span><button class="lc-x" id="lk_un">Убрать</button></div>`;}
+      <span>${esc(o.name)} · ${t('port_low')} ${lk.port}${o.type==='panel'?' ('+t('panel_low')+')':''}</span>
+      <button class="lc-x" id="lk_un">${t('unlink')}</button></div>
+      <div class="btnrow" style="margin-top:8px"><button class="btn ghost" id="lk_trace">${I.trace} ${t('trace_t')}</button></div>`;}
+    else{html+=`<div class="linkcard"><span>${t('link_broken')}</span><button class="lc-x" id="lk_un">${t('remove_btn')}</button></div>`;}
   }else{
-    html+=`<button class="btn ghost" id="lk_add" style="width:100%">${I.link} Связать с портом</button>`;}
+    html+=`<button class="btn ghost" id="lk_add" style="width:100%">${I.link} ${t('link_with')}</button>`;}
   area.innerHTML=html;
   const add=document.getElementById('lk_add');if(add)add.onclick=()=>{persistPortFields();openLinkPicker(d,n);};
   const un=document.getElementById('lk_un');if(un)un.onclick=()=>{persistPortFields();doUnlink(d,n);openPort(d,n);toast('Связь убрана');};
@@ -1163,12 +1285,12 @@ function pickLinkPort(aD,aN,bD){
     doLink(aD,aN,bD.id,+el.dataset.n);openPort(aD,aN);toast(`Связано: ${bD.name} · ${el.dataset.n}`);});
 }
 function showTrace(d,n){const lk=d.ports[n]&&d.ports[n].link;
-  if(!lk){toast('У порта нет связи');return;}
-  const o=devById(lk.deviceId);const a=nodeLabel(d,n),b=o?nodeLabel(o,lk.port):{top:'??',sub:'связь повреждена'};
-  openSheet(`<h2>Трасса кабеля</h2><div class="hint">Сквозная связь порта</div>
+  if(!lk){toast(t('no_link'));return;}
+  const o=devById(lk.deviceId);const a=nodeLabel(d,n),b=o?nodeLabel(o,lk.port):{top:'??',sub:t('link_broken')};
+  openSheet(`<h2>${t('trace_t')}</h2><div class="hint">${t('trace_hint')}</div>
     <div class="traceflow">
       <div class="tracenode"><div class="tn-top">${a.top}</div><div class="tn-sub">${a.sub}</div></div>
-      <div class="tracelink">↕ кабель ↕</div>
+      <div class="tracelink">↕ ${t('cable_word')} ↕</div>
       <div class="tracenode"><div class="tn-top">${b.top}</div><div class="tn-sub">${b.sub}</div></div>
     </div>
     <div class="btnrow"><button class="btn ghost" id="tr_back">Назад к порту</button>
@@ -1326,9 +1448,9 @@ async function callAI(question){
 function openAI(){
   const hasData=DB.devices.some(d=>Object.keys(d.ports).length);
   const faultCount=DB.devices.reduce((a,d)=>a+Object.values(d.ports).filter(p=>p.status==='fault').length,0);
-  openSheet(`<h2>${I.ai} AI-диагностика</h2>
-    <div class="hint">Анализирует только твою задокументированную сеть${faultCount?` · аварийных портов: ${faultCount}`:''}</div>
-    ${hasData?'':'<div class="photohint">Сначала добавь объекты и порты — AI отвечает по данным сети.</div>'}
+  openSheet(`<h2>${I.ai} ${t('ai_t')}</h2>
+    <div class="hint">${t('ai_hint')}${faultCount?` · ${t('ai_faults')}: ${faultCount}`:''}</div>
+    ${hasData?'':`<div class="photohint">${t('ai_empty')}</div>`}
     <div class="field"><textarea id="ai_q" placeholder="Напр.: что упало и почему? что отвалится, если вырубить SW-Core?" style="min-height:70px"></textarea></div>
     <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:6px">
       <button class="chip aiq">Что упало и почему?</button>
@@ -1375,12 +1497,12 @@ function parseCLI(text,d){if(roGuard())return 0;
   save();return{type,count};
 }
 function openCliImport(d){
-  openSheet(`<h2>Импорт из вывода команды</h2>
-    <div class="hint">Вставь вывод свитча — заполню порты «${esc(d.name)}» автоматически</div>
+  openSheet(`<h2>${t('m_cli')}</h2>
+    <div class="hint">${t('cli_hint')} · ${esc(d.name)}</div>
     <div class="field"><textarea id="cli_in" placeholder="show mac address-table\nshow interface status\nshow cdp neighbors" style="min-height:150px;font-family:'IBM Plex Mono',monospace;font-size:12px"></textarea></div>
-    <div class="hint" style="font-size:12px">Понимает Cisco-подобный формат (Cisco / BDCOM и похожие).</div>
-    <div class="btnrow"><button class="btn ghost" id="cli_cancel">Отмена</button>
-      <button class="btn prim" id="cli_go">Распознать и применить</button></div>`);
+    <div class="hint" style="font-size:12px">${t('cli_fmt')}</div>
+    <div class="btnrow"><button class="btn ghost" id="cli_cancel">${t('cancel')}</button>
+      <button class="btn prim" id="cli_go">${t('cli_go')}</button></div>`);
   document.getElementById('cli_cancel').onclick=closeSheet;
   document.getElementById('cli_go').onclick=()=>{const t=val('cli_in');if(!t){toast('Вставь текст');return;}
     const r=parseCLI(t,d);if(!r.count){toast('Формат не распознан');return;}
@@ -1390,18 +1512,18 @@ function openCliImport(d){
 
 /* ===== массовое редактирование ===== */
 function openBulk(d){
-  openSheet(`<h2>Массовое редактирование</h2>
-    <div class="hint">Задать параметры сразу диапазону портов «${esc(d.name)}»</div>
+  openSheet(`<h2>${t('m_bulk')}</h2>
+    <div class="hint">${t('bulk_hint')} · ${esc(d.name)}</div>
     <div class="row2">
-      <div class="field"><label>От порта</label><input id="bk_from" class="mono" inputmode="numeric" placeholder="1" value="1"></div>
-      <div class="field"><label>До порта</label><input id="bk_to" class="mono" inputmode="numeric" placeholder="${d.portCount}" value="${d.portCount}"></div></div>
-    <div class="field"><label>Статус</label><div class="seg" id="bk_seg">
+      <div class="field"><label>${t('from_port')}</label><input id="bk_from" class="mono" inputmode="numeric" placeholder="1" value="1"></div>
+      <div class="field"><label>${t('to_port')}</label><input id="bk_to" class="mono" inputmode="numeric" placeholder="${d.portCount}" value="${d.portCount}"></div></div>
+    <div class="field"><label>${t('status')}</label><div class="seg" id="bk_seg">
       ${['keep','free','up','reserved','fault'].map(v=>`<button data-v="${v}" class="${v==='keep'?'sel':''}">${v==='keep'?'—':STATLBL[v]}</button>`).join('')}</div></div>
-    ${d.type!=='panel'?`<div class="field"><label>Режим</label><div class="seg" id="bk_mode">
+    ${d.type!=='panel'?`<div class="field"><label>${t('port_mode')}</label><div class="seg" id="bk_mode">
       <button data-m="keep" class="sel">—</button><button data-m="access">Access</button><button data-m="trunk">Trunk</button></div></div>`:''}
-    <div class="field"><label>VLAN (пусто — не менять)</label><input id="bk_vlan" class="mono" placeholder="10"></div>
-    <div class="btnrow"><button class="btn ghost" id="bk_cancel">Отмена</button>
-      <button class="btn prim" id="bk_go">Применить</button></div>`);
+    <div class="field"><label>VLAN (${t('bk_keep')})</label><input id="bk_vlan" class="mono" placeholder="10"></div>
+    <div class="btnrow"><button class="btn ghost" id="bk_cancel">${t('cancel')}</button>
+      <button class="btn prim" id="bk_go">${t('apply_btn')}</button></div>`);
   let st='keep',md='keep';
   document.querySelectorAll('#bk_seg button').forEach(b=>b.onclick=()=>{st=b.dataset.v;
     document.querySelectorAll('#bk_seg button').forEach(x=>x.classList.toggle('sel',x===b));});
@@ -1419,10 +1541,10 @@ function openBulk(d){
 
 /* ===== QR на объект целиком ===== */
 function showDeviceQR(d){
-  openSheet(`<h2>QR объекта</h2><div class="hint">Наклей на дверцу шкафа — скан открывает весь объект</div>
+  openSheet(`<h2>${t('dqr_t')}</h2><div class="hint">${t('dqr_hint')}</div>
     <div style="text-align:center;margin:10px 0"><div class="qrcard" style="display:inline-block"><div id="dqr"></div></div>
     <p style="font-size:12px;color:var(--muted);margin-top:10px;font-family:'IBM Plex Mono',monospace">${esc(d.name)}</p></div>
-    <div class="btnrow"><button class="btn ghost" id="dqr_close">Закрыть</button></div>`);
+    <div class="btnrow"><button class="btn ghost" id="dqr_close">${t('close')}</button></div>`);
   document.getElementById('dqr_close').onclick=closeSheet;
   const el=document.getElementById('dqr');el.innerHTML='';
   new QRCode(el,{text:`#PMD:${d.id}# PortMap объект | ${d.name}`,width:190,height:190,colorDark:'#0a0e13',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
@@ -1448,32 +1570,32 @@ function loadDemo(){
 }
 
 function tryAddDevice(){if(!DB.pro&&DB.devices.length>=1){openPro();return;}openDeviceForm(null);}function openDeviceForm(d){if(roGuard())return;const isEdit=!!d;
-  const TPL=[['BDCOM S2528','switch',24],['Cisco 2960-24','switch',24],['Cisco 2960-48','switch',48],['8-port PoE','switch',8],['Патч-панель 24','panel',24],['Патч-панель 48','panel',48]];
+  const TPL=[['BDCOM S2528','switch',24],['Cisco 2960-24','switch',24],['Cisco 2960-48','switch',48],['8-port PoE','switch',8],[t('panel')+' 24','panel',24],[t('panel')+' 48','panel',48]];
   const curSfp=d&&d.sfpFrom?d.portCount-d.sfpFrom+1:0, curCopper=d&&d.sfpFrom?d.sfpFrom-1:(d?.portCount||24);
   openSheet(`
-    <h2>${isEdit?'Изменить объект':'Новый объект'}</h2>
-    <div class="hint">${isEdit?'Обнови данные объекта':'Свитч или патч-панель — что размечаешь'}</div>
-    ${isEdit?'':`<div class="field"><label>Шаблон (быстрый старт)</label>
+    <h2>${isEdit?t('m_edit'):t('df_new')}</h2>
+    <div class="hint">${isEdit?t('df_edit_hint'):t('df_new_hint')}</div>
+    ${isEdit?'':`<div class="field"><label>${t('df_tpl')}</label>
       <div style="display:flex;flex-wrap:wrap;gap:7px" id="tpl">
         ${TPL.map((t,i)=>`<button class="chip tplc" data-i="${i}">${t[0]}</button>`).join('')}</div></div>`}
-    <div class="field"><label>Тип</label><div class="pcount" id="dtype">
-      <button data-t="switch" class="${(d?.type||'switch')==='switch'?'sel':''}">Свитч</button>
-      <button data-t="panel" class="${d?.type==='panel'?'sel':''}">Патч-панель</button></div></div>
-    <div class="field"><label>Название</label><input id="d_name" placeholder="SW-Core-1, Панель P2…" value="${esc(d?.name||'')}"></div>
-    <div class="field"><label>Модель</label><input id="d_model" placeholder="BDCOM S2528, 24-port патч…" value="${esc(d?.model||'')}"></div>
+    <div class="field"><label>${t('df_type')}</label><div class="pcount" id="dtype">
+      <button data-t="switch" class="${(d?.type||'switch')==='switch'?'sel':''}">${t('df_switch')}</button>
+      <button data-t="panel" class="${d?.type==='panel'?'sel':''}">${t('panel')}</button></div></div>
+    <div class="field"><label>${t('df_name')}</label><input id="d_name" placeholder="SW-Core-1, Панель P2…" value="${esc(d?.name||'')}"></div>
+    <div class="field"><label>${t('df_model')}</label><input id="d_model" placeholder="BDCOM S2528, 24-port патч…" value="${esc(d?.model||'')}"></div>
     <div class="row2">
-      <div class="field"><label>Площадка / здание</label><input id="d_site" placeholder="Главный офис" value="${esc(d?.site||'')}"></div>
-      <div class="field"><label>Шкаф / стойка</label><input id="d_cab" placeholder="Стойка R1" value="${esc(d?.cabinet||'')}"></div></div>
-    <div class="field"><label>Локация</label><input id="d_loc" placeholder="Серверная, этаж 2…" value="${esc(d?.location||'')}"></div>
-    <div class="field"><label>IP управления (веб-интерфейс)</label><input id="d_mip" class="mono" inputmode="decimal" placeholder="192.168.1.2" value="${esc(d?.mgmtIp||'')}"></div>
-    <div class="field"><label>Медных портов (RJ45)</label>
+      <div class="field"><label>${t('df_site')}</label><input id="d_site" placeholder="${t('df_site_ph')}" value="${esc(d?.site||'')}"></div>
+      <div class="field"><label>${t('df_cab')}</label><input id="d_cab" placeholder="${t('df_cab_ph')}" value="${esc(d?.cabinet||'')}"></div></div>
+    <div class="field"><label>${t('df_loc')}</label><input id="d_loc" placeholder="${t('df_loc_ph')}" value="${esc(d?.location||'')}"></div>
+    <div class="field"><label>${t('df_mip')}</label><input id="d_mip" class="mono" inputmode="decimal" placeholder="192.168.1.2" value="${esc(d?.mgmtIp||'')}"></div>
+    <div class="field"><label>${t('df_copper')}</label>
       <div class="pcount" id="pcount">
         ${[8,16,24,48].map(n=>`<button data-n="${n}" class="${curCopper===n?'sel':''}">${n}</button>`).join('')}</div>
-      <input id="d_copper" class="mono" inputmode="numeric" placeholder="или своё число" value="${[8,16,24,48].includes(curCopper)?'':curCopper}" style="margin-top:8px;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--txt);font-size:14px;outline:none"></div>
-    <div class="field" id="sfpField"><label>SFP-порты (оптика, аплинк)</label><div class="pcount" id="sfp">
-      ${[0,2,4].map(n=>`<button data-s="${n}" class="${curSfp===n?'sel':''}">${n||'нет'}</button>`).join('')}</div></div>
-    <div class="btnrow"><button class="btn ghost" id="cancelDev">Отмена</button>
-      <button class="btn prim" id="saveDev">${isEdit?'Сохранить':'Создать'}</button></div>`);
+      <input id="d_copper" class="mono" inputmode="numeric" placeholder="${t('df_custom_n')}" value="${[8,16,24,48].includes(curCopper)?'':curCopper}" style="margin-top:8px;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--txt);font-size:14px;outline:none"></div>
+    <div class="field" id="sfpField"><label>${t('df_sfp')}</label><div class="pcount" id="sfp">
+      ${[0,2,4].map(n=>`<button data-s="${n}" class="${curSfp===n?'sel':''}">${n||t('df_none')}</button>`).join('')}</div></div>
+    <div class="btnrow"><button class="btn ghost" id="cancelDev">${t('cancel')}</button>
+      <button class="btn prim" id="saveDev">${isEdit?t('save_btn'):t('create_btn')}</button></div>`);
   let copper=curCopper, sfp=curSfp, dtype=d?.type||'switch';
   const selCopper=v=>{copper=v;document.getElementById('d_copper').value='';document.querySelectorAll('#pcount button').forEach(x=>x.classList.toggle('sel',+x.dataset.n===v));};
   const selSfp=v=>{sfp=v;document.querySelectorAll('#sfp button').forEach(x=>x.classList.toggle('sel',+x.dataset.s===v));};
@@ -1499,21 +1621,21 @@ function tryAddDevice(){if(!DB.pro&&DB.devices.length>=1){openPro();return;}open
 }
 function openDeviceMenu(d){
   openSheet(`<h2 style="margin-bottom:14px">${esc(d.name)}</h2>
-    <div class="menu-item" id="m_edit">${I.edit} Изменить объект</div>
-    <div class="menu-item" id="m_cli">${I.csv} Импорт из вывода команды</div>
+    <div class="menu-item" id="m_edit">${I.edit} ${t('m_edit')}</div>
+    <div class="menu-item" id="m_cli">${I.csv} ${t('m_cli')}</div>
     <div class="menu-item" id="m_real">${I.bolt} ${t('reality')}</div>
     <div class="menu-item" id="m_ping">📡 ${t('ping_all')}</div>
     <div class="menu-item" id="m_check">${I.check} ${t('checklist')}</div>
     <div class="menu-item" id="m_notes">${I.edit} ${t('obj_notes')}</div>
     ${d.mgmtIp?`<div class="menu-item" id="m_web">${I.mapg} ${t('open_web')} (${esc(d.mgmtIp)})</div>`:''}
-    <div class="menu-item" id="m_bulk">${I.bolt} Массовое редактирование</div>
-    <div class="menu-item" id="m_photo">${I.photo} Фото и разметка портов</div>
-    <div class="menu-item" id="m_impact">${I.bolt} Impact-анализ (весь объект)</div>
-    <div class="menu-item" id="m_dqr">${I.qr} QR объекта (на шкаф)</div>
-    <div class="menu-item" id="m_pdf">${I.pdf} PDF-отчёт по портам</div>
-    <div class="menu-item" id="m_labels">${I.label} Лист QR-наклеек на печать</div>
-    <div class="menu-item" id="m_exp">${I.exp} Экспорт этого объекта (JSON)</div>
-    <div class="menu-item warn" id="m_del">${I.trash} Удалить объект</div>`);
+    <div class="menu-item" id="m_bulk">${I.bolt} ${t('m_bulk')}</div>
+    <div class="menu-item" id="m_photo">${I.photo} ${t('m_photo')}</div>
+    <div class="menu-item" id="m_impact">${I.bolt} ${t('m_impact')}</div>
+    <div class="menu-item" id="m_dqr">${I.qr} ${t('m_dqr')}</div>
+    <div class="menu-item" id="m_pdf">${I.pdf} ${t('m_pdf')}</div>
+    <div class="menu-item" id="m_labels">${I.label} ${t('m_labels')}</div>
+    <div class="menu-item" id="m_exp">${I.exp} ${t('m_expobj')}</div>
+    <div class="menu-item warn" id="m_del">${I.trash} ${t('m_delobj')}</div>`);
   document.getElementById('m_edit').onclick=()=>{closeSheet();setTimeout(()=>openDeviceForm(d),120);};
   document.getElementById('m_cli').onclick=()=>{closeSheet();setTimeout(()=>openCliImport(d),140);};
   document.getElementById('m_real').onclick=()=>{closeSheet();setTimeout(()=>openRealityCheck(d),140);};
@@ -1545,12 +1667,13 @@ function openMenu(){
     <div class="menu-item" id="m_free">${I.search} ${t('free_ports')}</div>
     <div class="menu-item" id="m_shift">${I.edit} ${t('shift')}</div>
     <div class="menu-item" id="m_field">${I.bolt} ${t('field_mode')}: ${DB.fieldMode?t('on'):t('off')}</div>
+    <div class="menu-item" id="m_orgs">🏢 ${t('orgs')}: ${esc(orgName())}</div>
     <div class="menu-item" id="m_kiosk">🖥 ${t('kiosk')}</div>
     <div class="menu-item g-hide" id="m_guest">👁 ${t('guest_access')}${DB.guestPin?' · '+t('on'):''}</div>
     <div class="menu-item g-hide" id="m_gh">⚡ ${t('gh_sync')}${ghCfg()?' · '+t('on'):''}</div>
     <div class="menu-item" id="m_log">${I.edit} ${t('changelog')}</div>
     <div class="menu-item" id="m_theme">${I.theme} ${t('theme')}: ${({light:t('theme_light'),amoled:'AMOLED'})[DB.theme]||t('theme_dark')}</div>
-    <div class="menu-item" id="m_lang">🌐 ${t('language')}: ${({ru:'Русский',uz:'O‘zbek',en:'English'})[DB.lang||'ru']}</div>
+    <div class="menu-item" id="m_lang">🌐 ${t('language')}: ${(DB.lang==='en')?'English':'Русский'}</div>
     <div class="menu-item" id="m_expall">${I.exp} ${t('export_json')}</div>
     <div class="menu-item" id="m_csv">${I.csv} ${t('export_csv')}</div>
     <div class="menu-item" id="m_netbox">${I.csv} ${t('netbox')}</div>
@@ -1569,6 +1692,7 @@ function openMenu(){
   document.getElementById('m_free').onclick=()=>{closeSheet();setTimeout(showFreePorts,160);};
   document.getElementById('m_shift').onclick=()=>{closeSheet();setTimeout(showShift,160);};
   document.getElementById('m_field').onclick=()=>{DB.fieldMode=!DB.fieldMode;save();applyTheme();closeSheet();toast(t('field_mode')+': '+(DB.fieldMode?t('on'):t('off')));};
+  document.getElementById('m_orgs').onclick=()=>{closeSheet();setTimeout(showOrgs,160);};
   document.getElementById('m_kiosk').onclick=()=>{if(confirm(t('kiosk_confirm')))enterKiosk();};
   const mgp=document.getElementById('m_guest');if(mgp)mgp.onclick=()=>{closeSheet();setTimeout(showGuestPin,160);};
   const mgh=document.getElementById('m_gh');if(mgh)mgh.onclick=()=>{closeSheet();setTimeout(showGhSync,160);};
@@ -1609,13 +1733,13 @@ function importData(){if(roGuard())return;const inp=document.createElement('inpu
     fr.onload=()=>{const txt=fr.result;
       const isCSV=file.name.toLowerCase().endsWith('.csv')||(!txt.trim().startsWith('{')&&txt.includes(';'));
       try{
-        if(isCSV){const n=importCSV(txt);closeSheet();renderHome();toast(n?`Импортировано свитчей: ${n}`:'Пустой CSV');}
+        if(isCSV){const n=importCSV(txt);closeSheet();renderHome();toast(n?t('imported')+': '+n:t('empty_csv'));}
         else{const data=JSON.parse(txt);
           if(data.enc===1){importEncrypted(data);return;}
           const list=data.devices||[];
           list.forEach(d=>{if(!d.id)d.id=uid();if(!d.ports)d.ports={};DB.devices.push(d);});
-          save();closeSheet();renderHome();toast(`Импортировано: ${list.length}`);}
-      }catch(e){toast('Не удалось прочитать файл');}};fr.readAsText(file);};inp.click();}
+          save();closeSheet();renderHome();toast(t('imported')+': '+list.length);}
+      }catch(e){toast(t('file_err'));}};fr.readAsText(file);};inp.click();}
 
 function goHome(){view={name:'home',deviceId:null,filter:''};renderHome();}
 
@@ -1733,13 +1857,13 @@ function showAudit(){
     `<div class="hint" style="margin-top:14px;font-weight:600;color:${color}">${title} · ${arr.length}</div>`+
     arr.map(x=>`<div class="impitem gsr-i audit-i" data-d="${x.d.id}" data-n="${x.n}">
       <span class="id" style="background:${color}"></span><div>${esc(x.text)}</div></div>`).join(''):'';
-  openSheet(`<h2>${I.bolt} Проверка сети</h2>
-    <div class="hint">${total?`Найдено проблем: <b>${total}</b> · тап по строке — к порту`:'Проблем не найдено — документация чистая ✓'}</div>
-    ${sec('Дубликаты кабель-ID',r.dup,'var(--fault)')}
-    ${sec('Режимы на концах линка не совпадают',r.mode,'var(--fault)')}
-    ${sec('Разные VLAN на концах линка',r.vlan,'var(--reserved)')}
-    ${sec('Аварийные порты',r.fault,'var(--fault)')}
-    ${sec('Зомби-резервы (дольше 30 дней)',r.stale,'var(--reserved)')}
+  openSheet(`<h2>${I.bolt} ${t('audit')}</h2>
+    <div class="hint">${total?`${t('au_found')}: <b>${total}</b> · ${t('au_tap')}`:t('au_clean')}</div>
+    ${sec(t('au_dup'),r.dup,'var(--fault)')}
+    ${sec(t('au_mode'),r.mode,'var(--fault)')}
+    ${sec(t('au_vlan'),r.vlan,'var(--reserved)')}
+    ${sec(t('au_fault'),r.fault,'var(--fault)')}
+    ${sec(t('au_stale'),r.stale,'var(--reserved)')}
     <div class="btnrow" style="margin-top:14px"><button class="btn ghost" id="au_close">${t('close')}</button>
       ${total?`<button class="btn prim" id="au_csv">CSV</button>`:''}</div>`);
   document.getElementById('au_close').onclick=closeSheet;
@@ -1841,11 +1965,11 @@ function openRealityCheck(d){
 /* ---------- вид стойки ---------- */
 let rackPlace=null; /* {devId} — устройство в режиме размещения */
 function showRack(){
-  if(!DB.devices.length){toast('Нет объектов');return;}
+  if(!DB.devices.length){toast(t('no_objects'));return;}
   rackPlace=null;renderRack();}
 function renderRack(){
   const groups={};
-  DB.devices.forEach(d=>{const k=d.cabinet&&d.cabinet.trim()||'Без стойки';(groups[k]=groups[k]||[]).push(d);});
+  DB.devices.forEach(d=>{const k=d.cabinet&&d.cabinet.trim()||t('no_rack');(groups[k]=groups[k]||[]).push(d);});
   const html=Object.keys(groups).sort((a,b)=>a.localeCompare(b,'ru')).map(cab=>{
     const devs=groups[cab];
     const placed={},unplaced=[];
@@ -1857,16 +1981,16 @@ function renderRack(){
         <div class="uslot">${d?
           `<div class="rackdev" data-d="${d.id}">${d.type==='panel'?I.label:I.logo}
              <span class="rd-nm">${esc(d.name)}</span>
-             <span class="rd-x" data-x="${d.id}" title="Убрать из юнита">×</span></div>`:
+             <span class="rd-x" data-x="${d.id}" title="${t('rk_unplace')}">×</span></div>`:
           `<span class="rackfree">${rackPlace?'тап — разместить сюда':''}</span>`}</div></div>`;}
     const chips=unplaced.length?`<div style="padding:9px 12px;border-bottom:1px solid var(--line)">
-      <div class="hint" style="margin-bottom:7px;font-size:12px">Не размещены — тапни и укажи юнит:</div>
+      <div class="hint" style="margin-bottom:7px;font-size:12px">${t('rk_unplaced')}</div>
       <div style="display:flex;flex-wrap:wrap;gap:7px">${unplaced.map(d=>
         `<button class="chip rk-chip${rackPlace===d.id?' sel':''}" data-d="${d.id}" style="${rackPlace===d.id?'border-color:var(--brand);color:var(--brand)':''}">${esc(d.name)}</button>`).join('')}</div></div>`:'';
     return `<div class="rackbox"><div class="rackhead">${I.mapg} ${esc(cab)}
       <span style="margin-left:auto;color:var(--muted);font-size:11px;font-weight:400">${devs.length} об.</span></div>${chips}${rows}</div>`;}).join('');
-  openSheet(`<h2>${I.mapg} Стойки</h2>
-    <div class="hint">Раскладка по юнитам. Шкаф берётся из поля «Шкаф / стойка» объекта.</div>
+  openSheet(`<h2>${I.mapg} ${t('rack')}</h2>
+    <div class="hint">${t('rk_hint')}</div>
     ${html}<div class="btnrow" style="margin-top:12px"><button class="btn ghost" id="rk_close">${t('close')}</button>
       <button class="btn prim" id="rk_print">${I.pdf} ${t('rk_print')}</button></div>`);
   document.getElementById('rk_close').onclick=()=>{rackPlace=null;closeSheet();};
@@ -1883,6 +2007,67 @@ function renderRack(){
     d.unit=+el.dataset.u;d.cabinet=d.cabinet&&d.cabinet.trim()?d.cabinet:(el.dataset.cab==='Без стойки'?'':el.dataset.cab);
     logEvent(`${d.name} размещён: ${d.cabinet||'стойка'} · U${d.unit}`);
     save();rackPlace=null;renderRack();});}
+
+/* ============================================================
+   ORGS : несколько организаций/сетей в одном приложении
+   Активная организация живёт прямо в DB.devices/DB.log (старый код
+   не тронут), остальные — снапшотами в DB.orgStore.
+   ============================================================ */
+function orgId(){return DB.currentOrg||'main';}
+function orgName(){return DB.orgName||t('org_default');}
+function orgList(){
+  const list=[{id:orgId(),name:orgName(),current:true,devs:DB.devices.length}];
+  Object.entries(DB.orgStore||{}).forEach(([id,o])=>
+    list.push({id,name:o.name||'?',current:false,devs:(o.devices||[]).length}));
+  return list;}
+function stashCurrentOrg(){
+  DB.orgStore=DB.orgStore||{};
+  DB.orgStore[orgId()]={name:orgName(),devices:DB.devices,log:DB.log||[],statHist:DB.statHist||[]};}
+function switchOrg(id){
+  if(id===orgId())return;
+  const o=(DB.orgStore||{})[id];if(!o){toast('?');return;}
+  stashCurrentOrg();
+  DB.devices=o.devices||[];DB.log=o.log||[];DB.statHist=o.statHist||[];
+  DB.orgName=o.name;DB.currentOrg=id;
+  delete DB.orgStore[id];
+  UNDO=null;save();closeSheet();goHome();
+  toast(t('org_now')+': '+DB.orgName);}
+function addOrg(){
+  if(roGuard())return;
+  const name=prompt(t('org_add_ask'));if(!name)return;
+  stashCurrentOrg();
+  DB.currentOrg=uid();DB.orgName=name.trim();
+  DB.devices=[];DB.log=[];DB.statHist=[];
+  UNDO=null;save();closeSheet();goHome();
+  toast(t('org_created')+': '+DB.orgName);}
+function showOrgs(){
+  const items=orgList().map(o=>`
+    <div class="impitem org-i" data-id="${o.id}" style="cursor:pointer${o.current?';border-color:var(--brand)':''}">
+      <span class="id" style="background:${o.current?'var(--brand)':'var(--free)'}"></span>
+      <div style="flex:1;min-width:0"><div>${esc(o.name)}${o.current?` <span style="color:var(--brand);font-size:11px">● ${t('org_current')}</span>`:''}</div>
+        <div style="font-size:11px;color:var(--muted)">${o.devs} ${t('objects').toLowerCase()}</div></div>
+      ${!o.current&&!GUEST&&!KIOSK?`<button class="rd-x org-ren" data-id="${o.id}" style="background:none;border:none;color:var(--muted);font-size:14px">✏️</button>
+      <button class="rd-x org-del" data-id="${o.id}" style="background:none;border:none;color:var(--muted);font-size:15px">×</button>`:''}
+    </div>`).join('');
+  openSheet(`<h2>🏢 ${t('orgs')}</h2><div class="hint">${t('org_hint')}</div>
+    ${items}
+    <div class="btnrow" style="margin-top:12px"><button class="btn ghost" id="org_close">${t('close')}</button>
+      ${!GUEST&&!KIOSK?`<button class="btn prim" id="org_add">+ ${t('org_add')}</button>`:''}</div>`);
+  document.getElementById('org_close').onclick=closeSheet;
+  const oa=document.getElementById('org_add');if(oa)oa.onclick=addOrg;
+  document.querySelectorAll('.org-i').forEach(el=>el.onclick=e=>{
+    if(e.target.classList.contains('org-del')||e.target.classList.contains('org-ren'))return;
+    switchOrg(el.dataset.id);});
+  document.querySelectorAll('.org-del').forEach(b=>b.onclick=e=>{e.stopPropagation();
+    if(roGuard())return;
+    const o=(DB.orgStore||{})[b.dataset.id];if(!o)return;
+    if(confirm(t('org_del_confirm')+` «${o.name}» (${(o.devices||[]).length})?`)){
+      delete DB.orgStore[b.dataset.id];save();closeSheet();setTimeout(showOrgs,120);}});
+  document.querySelectorAll('.org-ren').forEach(b=>b.onclick=e=>{e.stopPropagation();
+    if(roGuard())return;
+    const o=(DB.orgStore||{})[b.dataset.id];if(!o)return;
+    const nn=prompt(t('org_rename'),o.name);if(!nn)return;
+    o.name=nn.trim();save();closeSheet();setTimeout(showOrgs,120);});}
 
 /* ============================================================
    TEAM : гостевой доступ, GitHub-синхронизация, киоск-режим
@@ -2352,6 +2537,7 @@ window.addEventListener('popstate',()=>{
 });
 /* если localStorage пуст/битый — поднимаем данные из IndexedDB и перерисовываем */
 loadIDB().then(changed=>{if(changed){applyTheme();boot();}});
+if(DB.lang==='uz'){DB.lang='ru';} /* узбекская локаль убрана */
 trashPurge(); /* удаляем из корзины то, чему больше 30 дней */
 setTimeout(()=>{try{ghCheck();}catch(e){}},1500); /* GitHub: есть ли версия новее */
 if(KIOSK)wakeKiosk();
