@@ -3,7 +3,7 @@
    - навигация/HTML  -> network-first (обновления подхватываются сразу, офлайн — из кэша)
    - свои ассеты      -> stale-while-revalidate (мгновенно из кэша, тихо обновляем)
    - CDN/шрифты       -> cache-first (иммутабельные, экономим трафик)              */
-const CACHE = 'portmap-v6';
+const CACHE = 'portmap-v7';
 const SHELL = [
   './',
   './index.html',
