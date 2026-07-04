@@ -304,6 +304,21 @@ input,textarea,select{font-family:inherit}
 .plitem:active{transform:scale(.99)}
 .plitem .pn2{min-width:26px;text-align:center;font-weight:800;font-size:15px;color:var(--muted);padding-top:1px}
 .plbadge{display:inline-block;border:1px dashed var(--line);border-radius:999px;padding:2px 9px;font-size:10.5px;margin-right:6px;color:var(--muted);font-family:'IBM Plex Mono',monospace}
+/* ===== QoL: копирование, свайпы, превью, крупный шрифт, недавние ===== */
+.copyable{border-bottom:1px dashed var(--line);cursor:copy}
+.recentrow{display:flex;gap:7px;overflow-x:auto;margin:0 0 10px;padding-bottom:2px}
+.recentrow .chip{white-space:nowrap;flex-shrink:0}
+.okline{display:flex;align-items:center;gap:8px;margin:0 2px 10px;font-size:13px;color:var(--up);font-weight:600}
+#ppv{position:fixed;z-index:99;left:50%;top:38%;transform:translate(-50%,-50%);background:var(--surface2);
+  border:1px solid var(--line);border-radius:14px;padding:14px 18px;box-shadow:0 14px 40px rgba(0,0,0,.5);
+  min-width:200px;max-width:82vw;pointer-events:none;font-size:13.5px}
+#lightbox{position:fixed;inset:0;background:#fff;z-index:999}
+body.bigfont .port{min-width:54px;min-height:54px}
+body.bigfont .port .pn{font-size:18px;font-weight:800}
+body.bigfont .plitem .pn2{font-size:19px}
+body.bigfont .plitem{font-size:16px}
+body.bigfont .mono{font-size:14px!important}
+.plitem{touch-action:pan-y}
 /* ===== LIVE-режим ===== */
 @keyframes livepulse{0%,100%{opacity:1}50%{opacity:.35}}
 .livebadge{display:inline-flex;align-items:center;gap:5px;margin-left:8px;padding:2px 9px;border-radius:999px;
@@ -396,6 +411,7 @@ async function loadIDB(){/* восстановление из IndexedDB, есл�
 function save(){
   if(GUEST||KIOSK)return false; /* просмотр: ничего не пишем */
   DB.chg=(DB.chg||0)+1;
+  if(allFaults().length)DB.lastFaultTs=Date.now(); /* счётчик «дней без аварий» */
   /* суточный снапшот для графика заполненности */
   const _td=new Date().toISOString().slice(0,10);
   DB.statHist=DB.statHist||[];
@@ -418,6 +434,7 @@ function applyTheme(){
   document.body.classList.toggle('fieldmode',!!DB.fieldMode);
   document.body.classList.toggle('guest',!!GUEST);
   document.body.classList.toggle('kiosk',!!KIOSK);
+  document.body.classList.toggle('bigfont',!!DB.bigFont);
   const m=document.querySelector('meta[name="theme-color"]');
   if(m)m.content=amoled?'#000000':(light?'#eef1f5':'#0a0e13');}
 if(_mq&&_mq.addEventListener)_mq.addEventListener('change',()=>{if(!DB.theme)applyTheme();});
@@ -470,6 +487,9 @@ const LANG={
   ai_t:'AI-диагностика',ai_hint:'Анализирует только твою задокументированную сеть',
   ai_faults:'аварийных портов',ai_empty:'Сначала добавь объекты и порты — AI отвечает по данным сети.',
   ports_word:'портов',panel:'Патч-панель',no_site:'Без площадки',
+  share_btn:'Поделиться',dup_next:'В следующий',dup_last:'Это последний порт',
+  copied:'Скопировано 📋',all_alive:'Сеть зелёная — всё живо',days_nf:'дн. без аварий',
+  big_font:'Крупный шрифт',live_beep:'Звук аварии',
   live_t:'LIVE-режим',live_hint:'Живые статусы портов с монитора 24/7 — поверх твоей документации, ничего не записывает само. Имя объекта должно совпадать с именем свитча в config.json монитора.',
   live_url:'Адрес монитора',live_test:'Проверить связь',live_ok:'Монитор отвечает',
   live_err:'Монитор недоступен (URL / сеть / mixed content?)',
@@ -597,6 +617,9 @@ const LANG={
   ai_t:'AI diagnostics',ai_hint:'Analyzes only your documented network',
   ai_faults:'faulty ports',ai_empty:'Add objects and ports first — AI works with your network data.',
   ports_word:'ports',panel:'Patch panel',no_site:'No site',
+  share_btn:'Share',dup_next:'To next port',dup_last:'This is the last port',
+  copied:'Copied 📋',all_alive:'Network is green — all alive',days_nf:'days w/o faults',
+  big_font:'Large font',live_beep:'Fault sound',
   live_t:'LIVE mode',live_hint:'Real port statuses from the 24/7 monitor — overlaid on your documentation, never writes anything by itself. Object name must match the switch name in the monitor config.json.',
   live_url:'Monitor address',live_test:'Test connection',live_ok:'Monitor is responding',
   live_err:'Monitor unreachable (URL / network / mixed content?)',
@@ -976,14 +999,17 @@ function renderHome(){
         <button id="bkDo" style="background:var(--brand);color:#1a1205;border:none;border-radius:8px;padding:7px 11px;font-weight:700;font-size:12px">${t('backup_do')}</button>
         ${(DB.chg||0)>50?'':`<button id="bkLater" style="background:transparent;border:none;color:var(--muted);font-size:12px">${t('later')}</button>`}</div>`:''}
       ${Object.keys(DB.orgStore||{}).length?`<div style="font-size:12px;color:var(--muted);margin:0 2px 8px">🏢 ${esc(orgName())}</div>`:''}
-      ${allFaults().length?`<button class="panicbtn" id="panicBtn">🚨 ${t('panic')}<span class="cnt">${allFaults().length}</span></button>`:''}
+      ${allFaults().length?`<button class="panicbtn" id="panicBtn">🚨 ${t('panic')}<span class="cnt">${allFaults().length}</span></button>`
+        :(DB.devices.length?`<div class="okline">🟢 ${t('all_alive')}${daysNoFault()>=1?` · <span style="color:var(--muted);font-weight:500">🏆 ${daysNoFault()} ${t('days_nf')}</span>`:''}</div>`:'')}
+      ${recentHTML()}
       <div class="statline">
         <div class="stat"><div class="n">${DB.devices.length}</div><div class="l">${t('objects')}</div></div>
         <div class="stat"><div class="n">${docPorts}</div><div class="l">${t('portsUsed')}</div></div>
         <div class="stat"><div class="n">${totalPorts}</div><div class="l">${t('portsTotal')}</div></div>
       </div>
       ${sparkHTML()}
-      ${DB.devices.length>1?`<div class="search">${I.search}<input id="gsearch" placeholder="${t('gsearch_ph')}"></div><div id="gsr"></div>`:''}
+      ${DB.devices.length>1?`<div class="search">${I.search}<input id="gsearch" placeholder="${t('gsearch_ph')}" list="gshist"></div>
+      <datalist id="gshist">${(DB.searchHist||[]).map(q=>`<option value="${esc(q)}">`).join('')}</datalist><div id="gsr"></div>`:''}
       ${DB.devices.length?renderDeviceList():emptyHome()}
     </div>
     <button class="fab" id="addBtn">${I.plus} ${t('addSwitch')}</button>`;
@@ -993,6 +1019,9 @@ function renderHome(){
   liveBadge();
   document.getElementById('scanBtn').onclick=openScanner;
   const pb=document.getElementById('panicBtn');if(pb)pb.onclick=showPanic;
+  document.querySelectorAll('.rec-c').forEach(c=>c.onclick=()=>{
+    const dev=devById(c.dataset.d);if(!dev)return;
+    openDevice(dev.id);setTimeout(()=>openPort(dev,+c.dataset.n),240);});
   const bd=document.getElementById('bkDo');if(bd)bd.onclick=()=>exportData(DB.devices,'portmap-backup.json');
   const bl=document.getElementById('bkLater');if(bl)bl.onclick=()=>{DB.backupSnooze=Date.now();save();renderHome();};
   app.querySelectorAll('.dev').forEach(el=>el.onclick=()=>openDevice(el.dataset.id));
@@ -1001,6 +1030,7 @@ function renderHome(){
     if(q.length<2){out.innerHTML='';return;}
     out.innerHTML=globalSearchHTML(q);
     out.querySelectorAll('.gsr-i').forEach(el=>el.onclick=()=>{
+      searchHistPush(q);
       const d=devById(el.dataset.d);if(!d)return;
       openDevice(d.id);if(el.dataset.n)setTimeout(()=>openPort(d,+el.dataset.n),240);});};
 }
@@ -1055,6 +1085,7 @@ function renderDevice(){
   const f=document.getElementById('filter');f.oninput=()=>{view.filter=f.value;drawPlate(d);drawPortList(d);liveOverlayPlate(d);};
   drawPlate(d);drawPortList(d);
   liveBadge();liveOverlayPlate(d);
+  const pl=document.getElementById('plate');if(pl&&!pl._lp){pl._lp=1;bindLongPress(pl,d);}
 }
 /* Список задокументированных портов под фейсплейтом (как в старом PortMap, но богаче) */
 function drawPortList(d){
@@ -1077,7 +1108,7 @@ function drawPortList(d){
       <div style="min-width:0;flex:1">
         <div style="font-weight:600">${esc(p.device||'')||`<span style="color:${COL[st]}">${STATLBL[st]||st}</span>`}
           ${link?` <span style="color:var(--muted);font-weight:400;font-size:12px">${link}</span>`:''}</div>
-        ${(p.ip||p.mac)?`<div class="mono" style="font-size:11.5px;color:var(--muted);margin-top:2px">${esc([p.ip,p.mac].filter(Boolean).join('  '))}</div>`:''}
+        ${(p.ip||p.mac)?`<div class="mono" style="font-size:11.5px;color:var(--muted);margin-top:2px">${[p.ip,p.mac].filter(Boolean).map(v=>`<span class="copyable" data-c="${esc(v)}">${esc(v)}</span>`).join('  ')}</div>`:''}
         ${(p.location||p.note)?`<div style="font-size:11px;color:var(--muted);margin-top:2px">${esc([p.location,p.note].filter(Boolean).join(' · '))}</div>`:''}
         ${badges?`<div style="margin-top:6px">${badges}</div>`:''}
       </div></div>`);}
@@ -1085,6 +1116,8 @@ function drawPortList(d){
   if(hd)hd.style.display=(items.length||q)?'':'none';
   box.innerHTML=items.join('')||(q?`<div class="hint">${t('nothing')}</div>`:'');
   box.querySelectorAll('.plitem').forEach(el=>el.onclick=()=>openPort(d,+el.dataset.n));
+  box.querySelectorAll('.copyable').forEach(el=>el.onclick=e=>{e.stopPropagation();copyText(el.dataset.c);});
+  if(!box._sw){box._sw=1;bindSwipes(box,d);}
 }
 function matchPort(p,q){if(!q)return null;q=q.toLowerCase();if(!p)return false;
   return[p.device,p.vlan,p.cableId,p.location,p.note,p.ip,p.mac].some(v=>v&&String(v).toLowerCase().includes(q));}
@@ -1155,10 +1188,15 @@ function openPort(d,n){
       <button class="btn ghost" id="nfcBtn">${I.nfc} NFC</button></div>
     <div class="btnrow" style="margin-top:10px"><button class="btn ghost" id="photoBtn">${I.photo} ${t('on_photo')}</button>
       <button class="btn ghost" id="impBtn">${I.bolt} ${t('impact_btn')}</button></div>
+    <div class="btnrow" style="margin-top:10px"><button class="btn ghost" id="sharePort">📤 ${t('share_btn')}</button>
+      <button class="btn ghost" id="dupPort">⧉ ${t('dup_next')}</button></div>
     <div class="btnrow" style="margin-top:10px"><button class="btn prim" id="savePort" style="flex:1">${I.check} ${t('save_btn')}</button></div>
     <div class="btnrow" style="margin-top:10px"><button class="btn ghost" style="color:var(--muted)" id="clearPort">${t('clear_port')}</button></div>`);
   renderLinkArea(d,n);
   liveUptime(d,n);
+  recentPush(d,n);
+  document.getElementById('sharePort').onclick=()=>sharePortText(d,n);
+  document.getElementById('dupPort').onclick=dupToNext;
   document.getElementById('nfcBtn').onclick=()=>writeNFC(d,n);
   document.getElementById('photoBtn').onclick=()=>{persistPortFields();openPhotoMapper(d,n);};
   document.getElementById('impBtn').onclick=()=>{persistPortFields();showImpactPort(d,n);};
@@ -1603,14 +1641,10 @@ function loadDemo(){
 }
 
 function tryAddDevice(){if(!DB.pro&&DB.devices.length>=1){openPro();return;}openDeviceForm(null);}function openDeviceForm(d){if(roGuard())return;const isEdit=!!d;
-  const TPL=[['BDCOM S2528','switch',24],['Cisco 2960-24','switch',24],['Cisco 2960-48','switch',48],['8-port PoE','switch',8],[t('panel')+' 24','panel',24],[t('panel')+' 48','panel',48]];
-  const curSfp=d&&d.sfpFrom?d.portCount-d.sfpFrom+1:0, curCopper=d&&d.sfpFrom?d.sfpFrom-1:(d?.portCount||24);
+    const curSfp=d&&d.sfpFrom?d.portCount-d.sfpFrom+1:0, curCopper=d&&d.sfpFrom?d.sfpFrom-1:(d?.portCount||24);
   openSheet(`
     <h2>${isEdit?t('m_edit'):t('df_new')}</h2>
     <div class="hint">${isEdit?t('df_edit_hint'):t('df_new_hint')}</div>
-    ${isEdit?'':`<div class="field"><label>${t('df_tpl')}</label>
-      <div style="display:flex;flex-wrap:wrap;gap:7px" id="tpl">
-        ${TPL.map((t,i)=>`<button class="chip tplc" data-i="${i}">${t[0]}</button>`).join('')}</div></div>`}
     <div class="field"><label>${t('df_type')}</label><div class="pcount" id="dtype">
       <button data-t="switch" class="${(d?.type||'switch')==='switch'?'sel':''}">${t('df_switch')}</button>
       <button data-t="panel" class="${d?.type==='panel'?'sel':''}">${t('panel')}</button></div></div>
@@ -1638,8 +1672,14 @@ function tryAddDevice(){if(!DB.pro&&DB.devices.length>=1){openPro();return;}open
   document.querySelectorAll('#sfp button').forEach(b=>b.onclick=()=>selSfp(+b.dataset.s));
   document.querySelectorAll('#dtype button').forEach(b=>b.onclick=()=>selType(b.dataset.t));
   document.getElementById('d_copper').oninput=e=>{const v=parseInt(e.target.value);if(v>0){copper=v;document.querySelectorAll('#pcount button').forEach(x=>x.classList.remove('sel'));}};
-  document.querySelectorAll('.tplc').forEach(b=>b.onclick=()=>{const t=TPL[+b.dataset.i];
-    document.getElementById('d_model').value=t[0];selType(t[1]);selCopper(t[2]);selSfp(0);});
+  /* новый объект начинается с параметров последнего добавленного */
+  if(!isEdit&&DB.lastDevTpl){const L=DB.lastDevTpl;
+    document.getElementById('d_model').value=L.model||'';
+    document.getElementById('d_site').value=L.site||'';
+    document.getElementById('d_cab').value=L.cabinet||'';
+    if(L.type)selType(L.type);
+    if(L.copper)selCopper(L.copper);
+    selSfp(L.sfp||0);}
   selType(dtype);
   document.getElementById('cancelDev').onclick=closeSheet;
   document.getElementById('saveDev').onclick=()=>{const name=val('d_name');if(!name){toast('Введи название');return;}
@@ -1647,6 +1687,7 @@ function tryAddDevice(){if(!DB.pro&&DB.devices.length>=1){openPro();return;}open
     copper=Math.max(1,Math.min(96,copper||24));sfp=sfp||0;
     const total=copper+sfp,sfpFrom=sfp>0?copper+1:0;
     const fields={name,model:val('d_model'),location:val('d_loc'),site:val('d_site'),cabinet:val('d_cab'),mgmtIp:val('d_mip'),portCount:total,sfpFrom,type:dtype};
+    DB.lastDevTpl={model:fields.model,type:dtype,copper:sfpFrom?sfpFrom-1:total,sfp:sfpFrom?total-sfpFrom+1:0,site:fields.site,cabinet:fields.cabinet};
     if(isEdit){Object.assign(d,fields);Object.keys(d.ports).forEach(k=>{if(+k>total)delete d.ports[k];});
       logEvent(`Изменён объект: ${name}`);save();closeSheet();renderDevice();toast('Сохранено');}
     else{const nd=Object.assign({id:uid(),ports:{}},fields);
@@ -1702,6 +1743,7 @@ function openMenu(){
     <div class="menu-item" id="m_field">${I.bolt} ${t('field_mode')}: ${DB.fieldMode?t('on'):t('off')}</div>
     <div class="menu-item" id="m_live">🔴 ${t('live_t')}${DB.liveOn?' · '+t('on'):''}</div>
     <div class="menu-item" id="m_orgs">🏢 ${t('orgs')}: ${esc(orgName())}</div>
+    <div class="menu-item" id="m_big">🔍 ${t('big_font')}: ${DB.bigFont?t('on'):t('off')}</div>
     <div class="menu-item" id="m_kiosk">🖥 ${t('kiosk')}</div>
     <div class="menu-item g-hide" id="m_guest">👁 ${t('guest_access')}${DB.guestPin?' · '+t('on'):''}</div>
     <div class="menu-item g-hide" id="m_gh">⚡ ${t('gh_sync')}${ghCfg()?' · '+t('on'):''}</div>
@@ -1728,6 +1770,7 @@ function openMenu(){
   document.getElementById('m_field').onclick=()=>{DB.fieldMode=!DB.fieldMode;save();applyTheme();closeSheet();toast(t('field_mode')+': '+(DB.fieldMode?t('on'):t('off')));};
   document.getElementById('m_live').onclick=()=>{closeSheet();setTimeout(showLive,160);};
   document.getElementById('m_orgs').onclick=()=>{closeSheet();setTimeout(showOrgs,160);};
+  document.getElementById('m_big').onclick=()=>{DB.bigFont=!DB.bigFont;save();applyTheme();closeSheet();};
   document.getElementById('m_kiosk').onclick=()=>{if(confirm(t('kiosk_confirm')))enterKiosk();};
   const mgp=document.getElementById('m_guest');if(mgp)mgp.onclick=()=>{closeSheet();setTimeout(showGuestPin,160);};
   const mgh=document.getElementById('m_gh');if(mgh)mgh.onclick=()=>{closeSheet();setTimeout(showGhSync,160);};
@@ -2044,6 +2087,151 @@ function renderRack(){
     save();rackPlace=null;renderRack();});}
 
 /* ============================================================
+   QoL : шарить порт, дублировать, недавние, копирование,
+   свайпы, превью, история поиска, крупный шрифт, звук, свет
+   ============================================================ */
+
+/* ---------- поделиться портом ---------- */
+function sharePortText(d,n){
+  const p=d.ports[n]||{};
+  const lines=[`${d.name} · ${t('port')} ${n}`,
+    [p.device,p.ip,p.mac].filter(Boolean).join(' · '),
+    [p.vlan&&('VLAN '+p.vlan),p.cableId&&('#'+p.cableId)].filter(Boolean).join(' · '),
+    [d.cabinet&&(t('rk_rack')+' '+d.cabinet),d.location].filter(Boolean).join(' · ')
+  ].filter(Boolean).join('\n');
+  if(navigator.share)navigator.share({text:lines}).catch(()=>{});
+  else{copyText(lines);}}
+function copyText(s){
+  try{navigator.clipboard.writeText(s).then(()=>toast(t('copied')),()=>fallbackCopy(s));}
+  catch(e){fallbackCopy(s);}}
+function fallbackCopy(s){
+  const ta=document.createElement('textarea');ta.value=s;document.body.appendChild(ta);
+  ta.select();try{document.execCommand('copy');toast(t('copied'));}catch(e){}ta.remove();}
+
+/* ---------- дублировать порт в следующий ---------- */
+function dupToNext(){
+  const d=editPort.d,n=editPort.n;
+  if(n+1>d.portCount){toast(t('dup_last'));return;}
+  const src=readPort();
+  openPort(d,n+1);
+  editPort.status=src.status;editPort.mode=src.mode;
+  document.querySelectorAll('#seg button').forEach(b=>b.classList.toggle('sel',b.dataset.v===src.status));
+  document.querySelectorAll('#segmode button').forEach(b=>b.classList.toggle('sel',b.dataset.m===src.mode));
+  const map={f_device:src.device,f_vlan:src.vlan,f_cable:src.cableId,f_loc:src.location,f_note:src.note,f_ip:src.ip,f_mac:src.mac};
+  Object.entries(map).forEach(([id,v])=>{const el=document.getElementById(id);if(el)el.value=v||'';});
+  toast('⧉ → '+t('port')+' '+(n+1));}
+
+/* ---------- недавние порты ---------- */
+function recentPush(d,n){
+  DB.recent=(DB.recent||[]).filter(r=>!(r.d===d.id&&r.n===n));
+  DB.recent.unshift({d:d.id,n});
+  DB.recent.length=Math.min(DB.recent.length,3); /* персист при ближайшем save() */}
+function recentHTML(){
+  const list=(DB.recent||[]).map(r=>({r,dev:devById(r.d)})).filter(x=>x.dev);
+  if(!list.length)return '';
+  return `<div class="recentrow">${list.map(x=>{
+    const p=x.dev.ports[x.r.n]||{};
+    return `<button class="chip rec-c" data-d="${x.dev.id}" data-n="${x.r.n}">↩ ${esc(x.dev.name)}:${x.r.n}${p.device?' · '+esc(String(p.device).slice(0,14)):''}</button>`;}).join('')}</div>`;}
+
+/* ---------- история поиска ---------- */
+function searchHistPush(q){
+  q=(q||'').trim();if(q.length<2)return;
+  DB.searchHist=(DB.searchHist||[]).filter(x=>x.toLowerCase()!==q.toLowerCase());
+  DB.searchHist.unshift(q);DB.searchHist.length=Math.min(DB.searchHist.length,5);}
+
+/* ---------- дни без аварий ---------- */
+function daysNoFault(){
+  const from=DB.lastFaultTs||(DB.account&&DB.account.created)||Date.now();
+  return Math.floor((Date.now()-from)/864e5);}
+
+/* ---------- свайпы по списку портов ---------- */
+const ST_CYCLE={free:'up',up:'reserved',reserved:'fault',fault:'free'};
+function bindSwipes(box,d){
+  let sx=0,sy=0,el=null;
+  box.addEventListener('touchstart',e=>{
+    el=e.target.closest('.plitem');if(!el)return;
+    sx=e.touches[0].clientX;sy=e.touches[0].clientY;},{passive:true});
+  box.addEventListener('touchend',e=>{
+    if(!el)return;
+    const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;
+    const n=+el.dataset.n;el=null;
+    if(Math.abs(dx)<64||Math.abs(dy)>Math.abs(dx))return;
+    if(roGuard())return;
+    const port=d.ports[n]||{};
+    snapUndo(d,n);
+    if(dx<0){ /* влево: следующий статус */
+      const ns=ST_CYCLE[port.status||'free'];
+      d.ports[n]=Object.assign({},port,{status:ns,ts:Date.now()});
+      logEvent(`${d.name}:${n} → ${STATLBL[ns]}`);save();
+      drawPlate(d);drawPortList(d);liveOverlayPlate(d);
+      toastAct(`${t('port')} ${n}: ${STATLBL[ns]}`,t('undo'),undoLast);
+    }else{ /* вправо: очистить */
+      removeReverse(d,n);delete d.ports[n];
+      logEvent(`${d.name}:${n}: ${t('port_cleared')}`);save();
+      drawPlate(d);drawPortList(d);liveOverlayPlate(d);
+      toastAct(`${t('port')} ${n}: ${t('port_cleared')}`,t('undo'),undoLast);}
+  },{passive:true});}
+
+/* ---------- долгий тап: превью порта ---------- */
+let _ppvT=null,_ppvShown=false;
+function bindLongPress(plate,d){
+  const show=n=>{
+    const p=d.ports[n]||{};
+    let box=document.getElementById('ppv');
+    if(!box){box=document.createElement('div');box.id='ppv';document.body.appendChild(box);}
+    box.innerHTML=`<b>${t('port')} ${n}</b> · <span style="color:${STAT[p.status||'free']}">${STATLBL[p.status||'free']}</span>
+      ${p.device?`<div style="margin-top:5px">${esc(p.device)}</div>`:''}
+      ${(p.ip||p.mac)?`<div class="mono" style="font-size:12px;color:var(--muted);margin-top:3px">${esc([p.ip,p.mac].filter(Boolean).join(' · '))}</div>`:''}
+      ${p.vlan?`<div style="font-size:12px;color:var(--muted);margin-top:3px">VLAN ${esc(p.vlan)}${p.cableId?' · #'+esc(p.cableId):''}</div>`:''}`;
+    box.style.display='block';_ppvShown=true;};
+  const hide=()=>{const box=document.getElementById('ppv');if(box)box.style.display='none';};
+  plate.addEventListener('touchstart',e=>{
+    const cell=e.target.closest('.port[data-n]');if(!cell)return;
+    _ppvShown=false;
+    _ppvT=setTimeout(()=>show(cell.dataset.n),420);},{passive:true});
+  ['touchend','touchmove','touchcancel'].forEach(ev=>
+    plate.addEventListener(ev,()=>{clearTimeout(_ppvT);hide();},{passive:true}));
+  plate.addEventListener('click',e=>{if(_ppvShown){e.stopPropagation();e.preventDefault();_ppvShown=false;}},true);}
+
+/* ---------- звук аварии (LIVE) ---------- */
+function beep(){
+  if(DB.liveBeep===false)return;
+  try{
+    const ctx=beep._c||(beep._c=new (window.AudioContext||window.webkitAudioContext)());
+    const o=ctx.createOscillator(),g=ctx.createGain();
+    o.connect(g);g.connect(ctx.destination);
+    o.frequency.value=880;g.gain.value=.12;
+    o.start();o.stop(ctx.currentTime+.14);
+    setTimeout(()=>{const o2=ctx.createOscillator(),g2=ctx.createGain();
+      o2.connect(g2);g2.connect(ctx.destination);o2.frequency.value=660;g2.gain.value=.12;
+      o2.start();o2.stop(ctx.currentTime+.14);},190);
+  }catch(e){}}
+function liveCheckNewFaults(){
+  if(!liveFresh())return;
+  const cur=new Set();
+  Object.entries(LIVE.data||{}).forEach(([sw,e])=>{
+    if(e&&e.ok)Object.entries(e.ports||{}).forEach(([n,p])=>{if(p.oper==='down')cur.add(sw+':'+n);});});
+  if(LIVE.prevDown){
+    for(const k of cur)if(!LIVE.prevDown.has(k)){beep();break;}}
+  LIVE.prevDown=cur;}
+
+/* ---------- встряхнул → белый свет ---------- */
+let _shakeLast=0,_shakeCnt=0;
+function showLight(){
+  if(document.getElementById('lightbox'))return;
+  const el=document.createElement('div');el.id='lightbox';
+  el.onclick=()=>el.remove();document.body.appendChild(el);}
+window.addEventListener('devicemotion',e=>{
+  if(!authed)return;
+  const a=e.accelerationIncludingGravity;if(!a)return;
+  const mag=Math.abs(a.x||0)+Math.abs(a.y||0)+Math.abs(a.z||0);
+  const now=Date.now();
+  if(mag>42){
+    if(now-_shakeLast>900)_shakeCnt=0;
+    _shakeLast=now;_shakeCnt++;
+    if(_shakeCnt>=3){_shakeCnt=0;showLight();}}});
+
+/* ============================================================
    LIVE : живые статусы с монитора 24/7 + uptime-полоски
    Поверх документации, ничего не записывает само.
    ============================================================ */
@@ -2074,6 +2262,7 @@ document.addEventListener('visibilitychange',()=>{ /* вернулись в пр
 
 /* --- наложение на текущий экран --- */
 function liveApply(){
+  liveCheckNewFaults();
   liveBadge();
   if(view.name==='device'&&view.deviceId){
     const d=devById(view.deviceId);if(d)liveOverlayPlate(d);}}
@@ -2149,6 +2338,7 @@ function showLive(){
     <div class="field"><label>${t('live_url')}</label>
       <input id="lv_url" class="mono" placeholder="http://192.168.1.10:8765" value="${esc(DB.liveUrl||'')}"></div>
     <div class="menu-item" id="lv_toggle">${DB.liveOn?'🟢':'⚪'} ${t('live_t')}: ${DB.liveOn?t('on'):t('off')}</div>
+    <div class="menu-item" id="lv_beep">${DB.liveBeep===false?'🔇':'🔔'} ${t('live_beep')}: ${DB.liveBeep===false?t('off'):t('on')}</div>
     <div id="lv_status" class="hint" style="margin-top:8px"></div>
     <div class="hint" style="margin-top:8px">${t('live_mixed')}</div>
     <div class="btnrow" style="margin-top:12px"><button class="btn ghost" id="lv_close">${t('close')}</button>
@@ -2162,6 +2352,9 @@ function showLive(){
   document.getElementById('lv_close').onclick=()=>{
     if(!roGuard()){DB.liveUrl=val('lv_url');save();}
     closeSheet();liveStart();liveBadge();};
+  document.getElementById('lv_beep').onclick=()=>{
+    if(roGuard())return;
+    DB.liveBeep=DB.liveBeep===false?true:false;save();closeSheet();setTimeout(showLive,120);};
   document.getElementById('lv_toggle').onclick=()=>{
     if(roGuard())return;
     DB.liveUrl=val('lv_url');DB.liveOn=!DB.liveOn;save();
